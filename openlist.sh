@@ -478,7 +478,7 @@ After=network.target network.service
 [Service]
 Type=simple
 WorkingDirectory=$INSTALL_PATH
-ExecStart=$INSTALL_PATH/openlist
+ExecStart=$INSTALL_PATH/openlist server
 KillMode=process
 Restart=on-failure
 RestartSec=5
