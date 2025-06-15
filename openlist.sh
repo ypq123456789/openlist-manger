@@ -27,7 +27,7 @@
 GITHUB_REPO="OpenListTeam/OpenList"
 VERSION_TAG="beta"
 VERSION_FILE="/opt/openlist/.version"
-MANAGER_VERSION="1.3.0"  # 添加管理器版本号
+MANAGER_VERSION="1.3.1"  # 添加管理器版本号
 
 # 颜色配置
 RED_COLOR='\e[1;31m'
