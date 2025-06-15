@@ -28,23 +28,11 @@
 
 ## 使用方法
 
-1.  **下载脚本**
 
-    ```bash
-    curl -fsSL "https://raw.githubusercontent.com/ypq123456789/openlist/refs/heads/main/openlist.sh" -o openlist.sh
-    ```
 
-2.  **授予执行权限**
-
-    ```bash
-    chmod +x openlist.sh
-    ```
-
-3.  **运行脚本**
-
-    ```bash
-    sudo ./openlist.sh
-    ```
+    
+    curl -fsSL "https://raw.githubusercontent.com/ypq123456789/openlist/refs/heads/main/openlist.sh" -o openlist.sh && chmod +x openlist.sh && sudo ./openlist.sh
+    
 
 ## 脚本菜单详解
 
