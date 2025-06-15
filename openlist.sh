@@ -27,7 +27,7 @@
 GITHUB_REPO="OpenListTeam/OpenList"
 VERSION_TAG="beta"
 VERSION_FILE="/opt/openlist/.version"
-MANAGER_VERSION="1.3.9"  # 更新管理器版本号
+MANAGER_VERSION="1.4.0"  # 更新管理器版本号
 
 # 颜色配置
 RED_COLOR='\e[1;31m'
@@ -43,7 +43,7 @@ handle_error() {
     local exit_code=$1
     local error_msg=$2
     echo -e "${RED_COLOR}错误：${error_msg}${RES}"
-    read -p "按回车键继续..."
+    read -r -p "按回车键继续..." < /dev/tty
     return ${exit_code}
 }
 
@@ -64,7 +64,7 @@ check_dependencies() {
         echo -e "${YELLOW_COLOR}请先安装这些依赖包：${RES}"
         echo -e "Ubuntu/Debian: sudo apt update && sudo apt install curl tar"
         echo -e "CentOS/RHEL: sudo yum install curl tar"
-        read -p "按回车键退出..."
+        read -r -p "按回车键退出..." < /dev/tty
         exit 1
     fi
 }
@@ -115,7 +115,7 @@ check_system_requirements() {
     if [ "$(id -u)" != "0" ]; then
         echo -e "${RED_COLOR}错误：需要 root 权限运行此脚本${RES}"
         echo -e "${YELLOW_COLOR}请使用: sudo ./openlist.sh${RES}"
-        read -p "按回车键退出..."
+        read -r -p "按回车键退出..." < /dev/tty
         exit 1
     fi
     
@@ -123,7 +123,7 @@ check_system_requirements() {
     if [ "$ARCH" == "UNKNOWN" ]; then
         echo -e "${RED_COLOR}错误：不支持的系统架构 $(uname -m)${RES}"
         echo -e "${YELLOW_COLOR}目前仅支持 x86_64 和 arm64 架构${RES}"
-        read -p "按回车键退出..."
+        read -r -p "按回车键退出..." < /dev/tty
         exit 1
     fi
     
@@ -131,7 +131,7 @@ check_system_requirements() {
     if ! command -v systemctl >/dev/null 2>&1; then
         echo -e "${RED_COLOR}错误：系统不支持 systemd${RES}"
         echo -e "${YELLOW_COLOR}本脚本需要 systemd 支持${RES}"
-        read -p "按回车键退出..."
+        read -r -p "按回车键退出..." < /dev/tty
         exit 1
     fi
     
@@ -192,7 +192,7 @@ select_version() {
     echo
     
     while true; do
-        read -p "请输入选项 [1-4]: " version_choice
+        read -r -p "请输入选项 [1-4]: " version_choice < /dev/tty
         
         case "$version_choice" in
             1)
@@ -204,7 +204,7 @@ select_version() {
                 echo
                 if get_available_versions; then
                     echo
-                    read -p "请输入要使用的版本标签: " custom_version
+                    read -r -p "请输入要使用的版本标签: " custom_version < /dev/tty
                     if [ ! -z "$custom_version" ]; then
                         VERSION_TAG="$custom_version"
                         echo -e "${GREEN_COLOR}已选择版本：$VERSION_TAG${RES}"
@@ -219,7 +219,7 @@ select_version() {
                 break
                 ;;
             3)
-                read -p "请输入版本标签 (如: beta, v1.0.0): " custom_version
+                read -r -p "请输入版本标签 (如: beta, v1.0.0): " custom_version < /dev/tty
                 if [ ! -z "$custom_version" ]; then
                     VERSION_TAG="$custom_version"
                     echo -e "${GREEN_COLOR}已选择版本：$VERSION_TAG${RES}"
@@ -255,7 +255,7 @@ setup_proxy() {
     echo
     
     while true; do
-        read -p "请输入选项 [1-4]: " proxy_choice
+        read -r -p "请输入选项 [1-4]: " proxy_choice < /dev/tty
         
         case "$proxy_choice" in
             1)
@@ -275,7 +275,7 @@ setup_proxy() {
                 ;;
             4)
                 echo -e "${YELLOW_COLOR}代理地址格式：https://example.com/${RES}"
-                read -p "请输入代理地址: " custom_proxy
+                read -r -p "请输入代理地址: " custom_proxy < /dev/tty
                 if [[ "$custom_proxy" =~ ^https://.*[/]$ ]]; then
                     GH_PROXY="$custom_proxy"
                     echo -e "${GREEN_COLOR}已设置代理：$GH_PROXY${RES}"
@@ -342,7 +342,7 @@ check_install() {
         echo
         
         while true; do
-            read -p "请选择 [1-2]: " install_choice
+            read -r -p "请选择 [1-2]: " install_choice < /dev/tty
             case "$install_choice" in
                 1)
                     echo -e "${GREEN_COLOR}准备覆盖安装...${RES}"
@@ -392,7 +392,7 @@ install_openlist() {
     
     # 检查安装
     if ! check_install; then
-        read -p "按回车键继续..."
+        read -r -p "按回车键继续..." < /dev/tty
         return
     fi
     
@@ -414,13 +414,13 @@ install_openlist() {
     echo -e "代理: ${GH_PROXY:-无}"
     echo
     
-    read -p "确认安装？[Y/n]: " confirm
+    read -r -p "确认安装？[Y/n]: " confirm < /dev/tty
     case "${confirm:-y}" in
         [yY]|"")
             ;;
         *)
             echo -e "${YELLOW_COLOR}已取消安装${RES}"
-            read -p "按回车键继续..."
+            read -r -p "按回车键继续..." < /dev/tty
             return
             ;;
     esac
@@ -428,7 +428,7 @@ install_openlist() {
     # 下载
     if ! download_file "$download_url" "/tmp/openlist.tar.gz"; then
         echo -e "${RED_COLOR}下载失败！${RES}"
-        read -p "按回车键继续..."
+        read -r -p "按回车键继续..." < /dev/tty
         return
     fi
     
@@ -437,7 +437,7 @@ install_openlist() {
     if ! tar -tf /tmp/openlist.tar.gz >/dev/null 2>&1; then
         echo -e "${RED_COLOR}文件损坏或格式错误${RES}"
         rm -f /tmp/openlist.tar.gz
-        read -p "按回车键继续..."
+        read -r -p "按回车键继续..." < /dev/tty
         return
     fi
     
@@ -446,14 +446,14 @@ install_openlist() {
     if ! tar zxf /tmp/openlist.tar.gz -C "$INSTALL_PATH/"; then
         echo -e "${RED_COLOR}解压失败${RES}"
         rm -f /tmp/openlist.tar.gz
-        read -p "按回车键继续..."
+        read -r -p "按回车键继续..." < /dev/tty
         return
     fi
     
     # 验证安装
     if [ ! -f "$INSTALL_PATH/openlist" ]; then
         echo -e "${RED_COLOR}安装失败，未找到可执行文件${RES}"
-        read -p "按回车键继续..."
+        read -r -p "按回车键继续..." < /dev/tty
         return
     fi
     
@@ -518,7 +518,7 @@ EOF
     echo -e "${BLUE_COLOR}初始密码：${RES}请查看服务日志获取"
     echo
     
-    read -p "按回车键继续..."
+    read -r -p "按回车键继续..." < /dev/tty
 }
 
 # 更新 OpenList
@@ -531,7 +531,7 @@ update_openlist() {
     
     if [ ! -f "$INSTALL_PATH/openlist" ]; then
         echo -e "${RED_COLOR}错误：未找到已安装的 OpenList${RES}"
-        read -p "按回车键继续..."
+        read -r -p "按回车键继续..." < /dev/tty
         return
     fi
     
@@ -557,7 +557,7 @@ update_openlist() {
     echo
     
     while true; do
-        read -p "请选择 [1-3]: " update_choice
+        read -r -p "请选择 [1-3]: " update_choice < /dev/tty
         case "$update_choice" in
             1)
                 break
@@ -588,13 +588,13 @@ update_openlist() {
     echo -e "代理: ${GH_PROXY:-无}"
     echo
     
-    read -p "确认更新？[Y/n]: " confirm
+    read -r -p "确认更新？[Y/n]: " confirm < /dev/tty
     case "${confirm:-y}" in
         [yY]|"")
             ;;
         *)
             echo -e "${YELLOW_COLOR}已取消更新${RES}"
-            read -p "按回车键继续..."
+            read -r -p "按回车键继续..." < /dev/tty
             return
             ;;
     esac
@@ -612,7 +612,7 @@ update_openlist() {
         echo -e "${RED_COLOR}下载失败，正在恢复...${RES}"
         mv "/tmp/openlist.bak" "$INSTALL_PATH/openlist"
         systemctl start openlist
-        read -p "按回车键继续..."
+        read -r -p "按回车键继续..." < /dev/tty
         return
     fi
     
@@ -623,7 +623,7 @@ update_openlist() {
         mv "/tmp/openlist.bak" "$INSTALL_PATH/openlist"
         systemctl start openlist
         rm -f /tmp/openlist.tar.gz
-        read -p "按回车键继续..."
+        read -r -p "按回车键继续..." < /dev/tty
         return
     fi
     
@@ -632,7 +632,7 @@ update_openlist() {
         echo -e "${RED_COLOR}更新失败，正在恢复...${RES}"
         mv "/tmp/openlist.bak" "$INSTALL_PATH/openlist"
         systemctl start openlist
-        read -p "按回车键继续..."
+        read -r -p "按回车键继续..." < /dev/tty
         return
     fi
     
@@ -651,7 +651,7 @@ update_openlist() {
     rm -f /tmp/openlist.tar.gz /tmp/openlist.bak
     
     echo -e "${GREEN_COLOR}OpenList 更新成功！${RES}"
-    read -p "按回车键继续..."
+    read -r -p "按回车键继续..." < /dev/tty
 }
 
 # 卸载 OpenList
@@ -664,7 +664,7 @@ uninstall_openlist() {
     
     if [ ! -f "$INSTALL_PATH/openlist" ]; then
         echo -e "${RED_COLOR}错误：未找到已安装的 OpenList${RES}"
-        read -p "按回车键继续..."
+        read -r -p "按回车键继续..." < /dev/tty
         return
     fi
     
@@ -677,10 +677,10 @@ uninstall_openlist() {
     echo -e "${YELLOW_COLOR}此操作不可逆！${RES}"
     echo
     
-    read -p "确认卸载？请输入 'YES' 确认: " confirm
+    read -r -p "确认卸载？请输入 'YES' 确认: " confirm < /dev/tty
     if [ "$confirm" != "YES" ]; then
         echo -e "${YELLOW_COLOR}已取消卸载${RES}"
-        read -p "按回车键继续..."
+        read -r -p "按回车键继续..." < /dev/tty
         return
     fi
     
@@ -704,7 +704,7 @@ uninstall_openlist() {
     rm -f "$VERSION_FILE"
     
     echo -e "${GREEN_COLOR}OpenList 已完全卸载${RES}"
-    read -p "按回车键继续..."
+    read -r -p "按回车键继续..." < /dev/tty
 }
 
 # 监控 OpenList 状态
@@ -757,7 +757,7 @@ show_status() {
     fi
     
     echo
-    read -p "按回车键继续..."
+    read -r -p "按回车键继续..." < /dev/tty
 }
 
 # 查看日志
@@ -770,7 +770,7 @@ show_logs() {
     
     if [ ! -f "$INSTALL_PATH/openlist" ]; then
         echo -e "${RED_COLOR}错误：OpenList 未安装${RES}"
-        read -p "按回车键继续..."
+        read -r -p "按回车键继续..." < /dev/tty
         return
     fi
     
@@ -783,7 +783,7 @@ show_logs() {
     echo
     
     while true; do
-        read -p "请选择 [1-5]: " log_choice
+        read -r -p "请选择 [1-5]: " log_choice < /dev/tty
         case "$log_choice" in
             1)
                 echo -e "${BLUE_COLOR}最近 50 条日志：${RES}"
@@ -815,7 +815,7 @@ show_logs() {
                 ;;
         esac
         echo
-        read -p "按回车键继续..."
+        read -r -p "按回车键继续..." < /dev/tty
         break
     done
 }
@@ -826,7 +826,7 @@ backup_config() {
     
     if [ ! -d "$INSTALL_PATH/data" ]; then
         echo -e "${RED_COLOR}错误：未找到配置目录${RES}"
-        read -p "按回车键继续..."
+        read -r -p "按回车键继续..." < /dev/tty
         return
     fi
     
@@ -842,23 +842,23 @@ backup_config() {
         echo -e "${RED_COLOR}备份失败${RES}"
     fi
     
-    read -p "按回车键继续..."
+    read -r -p "按回车键继续..." < /dev/tty
 }
 
 # 恢复配置
 restore_config() {
     echo -e "${CYAN_COLOR}配置恢复${RES}"
     
-    read -p "请输入备份目录路径: " backup_path
+    read -r -p "请输入备份目录路径: " backup_path < /dev/tty
     
     if [ ! -d "$backup_path/data" ]; then
         echo -e "${RED_COLOR}错误：备份目录不存在${RES}"
-        read -p "按回车键继续..."
+        read -r -p "按回车键继续..." < /dev/tty
         return
     fi
     
     echo -e "${YELLOW_COLOR}警告：此操作将覆盖当前配置${RES}"
-    read -p "确认恢复？[y/N]: " confirm
+    read -r -p "确认恢复？[y/N]: " confirm < /dev/tty
     
     case "$confirm" in
         [yY])
@@ -875,7 +875,7 @@ restore_config() {
             ;;
     esac
     
-    read -p "按回车键继续..."
+    read -r -p "按回车键继续..." < /dev/tty
 }
 
 # 重置密码
@@ -884,18 +884,18 @@ reset_password() {
     
     if [ ! -f "$INSTALL_PATH/openlist" ]; then
         echo -e "${RED_COLOR}错误：OpenList 未安装${RES}"
-        read -p "按回车键继续..."
+        read -r -p "按回车键继续..." < /dev/tty
         return
     fi
     
     echo -e "${RED_COLOR}注意：重置密码将删除数据库文件${RES}"
     echo -e "${YELLOW_COLOR}这将会丢失所有配置和数据！${RES}"
     echo
-    read -p "确认重置密码？请输入 'RESET': " confirm
+    read -r -p "确认重置密码？请输入 'RESET': " confirm < /dev/tty
     
     if [ "$confirm" != "RESET" ]; then
         echo -e "${YELLOW_COLOR}已取消重置${RES}"
-        read -p "按回车键继续..."
+        read -r -p "按回车键继续..." < /dev/tty
         return
     fi
     
@@ -929,7 +929,7 @@ reset_password() {
         echo -e "请查看日志：sudo journalctl -u openlist -f"
     fi
     
-    read -p "按回车键继续..."
+    read -r -p "按回车键继续..." < /dev/tty
 }
 
 # 控制服务
@@ -945,7 +945,7 @@ control_service() {
     
     if [ ! -f "$INSTALL_PATH/openlist" ]; then
         echo -e "${RED_COLOR}错误：OpenList 未安装${RES}"
-        read -p "按回车键继续..."
+        read -r -p "按回车键继续..." < /dev/tty
         return
     fi
     
@@ -964,7 +964,7 @@ control_service() {
             ;;
         *)
             echo -e "${RED_COLOR}无效的操作${RES}"
-            read -p "按回车键继续..."
+            read -r -p "按回车键继续..." < /dev/tty
             return
             ;;
     esac
@@ -979,7 +979,7 @@ control_service() {
         echo -e "${RED_COLOR}OpenList 服务${action_desc}失败${RES}"
     fi
     
-    read -p "按回车键继续..."
+    read -r -p "按回车键继续..." < /dev/tty
 }
 
 # 迁移 Alist 数据
@@ -992,7 +992,7 @@ migrate_alist_data() {
     
     if [ ! -f "$INSTALL_PATH/openlist" ]; then
         echo -e "${RED_COLOR}错误：OpenList 未安装${RES}"
-        read -p "按回车键继续..."
+        read -r -p "按回车键继续..." < /dev/tty
         return
     fi
     
@@ -1000,14 +1000,14 @@ migrate_alist_data() {
     if [ ! -f "/opt/alist/alist" ]; then
         echo -e "${RED_COLOR}错误：未找到 Alist 安装${RES}"
         echo -e "${YELLOW_COLOR}请确保 Alist 已安装在 /opt/alist 目录${RES}"
-        read -p "按回车键继续..."
+        read -r -p "按回车键继续..." < /dev/tty
         return
     fi
     
     echo -e "${YELLOW_COLOR}警告：此操作将迁移 Alist 的配置数据到 OpenList${RES}"
     echo -e "${YELLOW_COLOR}建议在迁移前备份 Alist 数据${RES}"
     echo
-    read -p "确认迁移？[y/N]: " confirm
+    read -r -p "确认迁移？[y/N]: " confirm < /dev/tty
     
     case "$confirm" in
         [yY])
@@ -1057,7 +1057,7 @@ migrate_alist_data() {
             ;;
     esac
     
-    read -p "按回车键继续..."
+    read -r -p "按回车键继续..." < /dev/tty
 }
 
 # 检查系统空间
@@ -1077,7 +1077,7 @@ check_disk_space() {
         echo -e "临时目录可用空间: $tmp_space"
         echo -e "当前目录可用空间: $current_space"
         echo -e "${YELLOW_COLOR}建议清理系统空间后再继续${RES}"
-        read -p "是否继续？[y/N]: " continue_choice
+        read -r -p "是否继续？[y/N]: " continue_choice < /dev/tty
         case "$continue_choice" in
             [yY])
                 return 0
