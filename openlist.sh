@@ -27,7 +27,7 @@
 GITHUB_REPO="OpenListTeam/OpenList"
 VERSION_TAG="beta"
 VERSION_FILE="/opt/openlist/.version"
-MANAGER_VERSION="1.3.5"  # 更新管理器版本号
+MANAGER_VERSION="1.3.6"  # 更新管理器版本号
 
 # 颜色配置
 RED_COLOR='\e[1;31m'
@@ -1109,15 +1109,24 @@ show_main_menu() {
         echo -e "${GREEN_COLOR}0${RES}  - 退出脚本"
         echo
         
-        # 修改read命令的处理方式
-        choice=""
-        while [ -z "$choice" ]; do
-            read -p "请输入选项 [0-9]: " choice
-            choice=$(echo "$choice" | tr -d '[:space:]')  # 移除所有空白字符
-        done
+        read -p "请输入选项 [0-9]: " choice
         
         # 添加调试信息
         echo -e "${YELLOW_COLOR}[调试] 输入的选项: '$choice'${RES}"
+        
+        # 检查输入是否为空
+        if [ -z "$choice" ]; then
+            echo -e "${RED_COLOR}请输入有效的选项 [0-9]${RES}"
+            sleep 1
+            continue
+        fi
+        
+        # 检查输入是否为数字
+        if ! [[ "$choice" =~ ^[0-9]+$ ]]; then
+            echo -e "${RED_COLOR}请输入数字选项 [0-9]${RES}"
+            sleep 1
+            continue
+        fi
         
         case "$choice" in
             1) 
