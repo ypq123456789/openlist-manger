@@ -1,33 +1,8 @@
-#!/bin/bash
-###############################################################################
-#
-# OpenList Interactive Manager Script
-#
-# Version: 1.3.7
-# Last Updated: 2025-06-15
-#
-# Description: 
-#   An interactive management script for OpenList
-#   Download first, then execute - no direct pipe installation
-#
-# Requirements:
-#   - Linux with systemd
-#   - Root privileges for installation
-#   - curl, tar
-#   - x86_64 or arm64 architecture
-#
-# Usage:
-#   curl -fsSL "https://raw.githubusercontent.com/ypq123456789/openlist/refs/heads/main/openlist.sh" -o openlist.sh
-#   chmod +x openlist.sh
-#   sudo ./openlist.sh
-#
-###############################################################################
-
 # 配置部分
 GITHUB_REPO="OpenListTeam/OpenList"
 VERSION_TAG="beta"
 VERSION_FILE="/opt/openlist/.version"
-MANAGER_VERSION="1.3.7"  # 更新管理器版本号
+MANAGER_VERSION="1.3.8"  # 更新管理器版本号
 
 # 颜色配置
 RED_COLOR='\e[1;31m'
@@ -1060,6 +1035,35 @@ migrate_alist_data() {
     read -p "按回车键继续..."
 }
 
+# 检查系统空间
+check_disk_space() {
+    echo -e "${BLUE_COLOR}检查系统空间...${RES}"
+    
+    # 检查 /tmp 目录空间
+    local tmp_space=$(df -h /tmp | awk 'NR==2 {print $4}')
+    local tmp_space_mb=$(df /tmp | awk 'NR==2 {print $4}')
+    
+    # 检查当前目录空间
+    local current_space=$(df -h . | awk 'NR==2 {print $4}')
+    local current_space_mb=$(df . | awk 'NR==2 {print $4}')
+    
+    if [ $tmp_space_mb -lt 102400 ] || [ $current_space_mb -lt 102400 ]; then
+        echo -e "${RED_COLOR}警告：系统空间不足${RES}"
+        echo -e "临时目录可用空间: $tmp_space"
+        echo -e "当前目录可用空间: $current_space"
+        echo -e "${YELLOW_COLOR}建议清理系统空间后再继续${RES}"
+        read -p "是否继续？[y/N]: " continue_choice
+        case "$continue_choice" in
+            [yY])
+                return 0
+                ;;
+            *)
+                exit 1
+                ;;
+        esac
+    fi
+}
+
 # 主菜单
 show_main_menu() {
     while true; do
@@ -1109,8 +1113,9 @@ show_main_menu() {
         echo -e "${GREEN_COLOR}0${RES}  - 退出脚本"
         echo
         
-        # 使用临时文件存储输入
-        choice=$(bash -c 'read -p "请输入选项 [0-9]: " choice; echo $choice')
+        # 简化的输入处理
+        printf "请输入选项 [0-9]: "
+        read choice
         
         # 添加调试信息
         echo -e "${YELLOW_COLOR}[调试] 输入的选项: '$choice'${RES}"
@@ -1132,11 +1137,11 @@ show_main_menu() {
         case "$choice" in
             1) 
                 echo -e "${YELLOW_COLOR}[调试] 执行: install_openlist${RES}"
-                install_openlist
+                check_disk_space && install_openlist
                 ;;
             2) 
                 echo -e "${YELLOW_COLOR}[调试] 执行: update_openlist${RES}"
-                update_openlist
+                check_disk_space && update_openlist
                 ;;
             3) 
                 echo -e "${YELLOW_COLOR}[调试] 执行: uninstall_openlist${RES}"
@@ -1144,7 +1149,7 @@ show_main_menu() {
                 ;;
             4) 
                 echo -e "${YELLOW_COLOR}[调试] 执行: migrate_alist_data${RES}"
-                migrate_alist_data
+                check_disk_space && migrate_alist_data
                 ;;
             5) 
                 echo -e "${YELLOW_COLOR}[调试] 执行: control_service start${RES}"
@@ -1183,6 +1188,7 @@ show_main_menu() {
 main() {
     show_welcome
     check_system_requirements
+    check_disk_space
     show_main_menu
 }
 
