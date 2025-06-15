@@ -1,8 +1,33 @@
+#!/bin/bash
+###############################################################################
+#
+# OpenList Interactive Manager Script
+#
+# Version: 1.3.3
+# Last Updated: 2025-06-15
+#
+# Description: 
+#   An interactive management script for OpenList
+#   Download first, then execute - no direct pipe installation
+#
+# Requirements:
+#   - Linux with systemd
+#   - Root privileges for installation
+#   - curl, tar
+#   - x86_64 or arm64 architecture
+#
+# Usage:
+#   curl -fsSL "https://raw.githubusercontent.com/ypq123456789/openlist/refs/heads/main/openlist.sh" -o openlist.sh
+#   chmod +x openlist.sh
+#   sudo ./openlist.sh
+#
+###############################################################################
+
 # 配置部分
 GITHUB_REPO="OpenListTeam/OpenList"
 VERSION_TAG="beta"
 VERSION_FILE="/opt/openlist/.version"
-MANAGER_VERSION="1.3.8"  # 更新管理器版本号
+MANAGER_VERSION="1.3.9"  # 更新管理器版本号
 
 # 颜色配置
 RED_COLOR='\e[1;31m'
@@ -1113,9 +1138,8 @@ show_main_menu() {
         echo -e "${GREEN_COLOR}0${RES}  - 退出脚本"
         echo
         
-        # 简化的输入处理
-        printf "请输入选项 [0-9]: "
-        read choice
+        # 强制从终端读取输入，以解决在特殊环境下（如通过管道或在某些 shell 中执行）的输入问题
+        read -p "请输入选项 [0-9]: " -r choice < /dev/tty
         
         # 添加调试信息
         echo -e "${YELLOW_COLOR}[调试] 输入的选项: '$choice'${RES}"
