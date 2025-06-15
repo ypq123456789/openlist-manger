@@ -148,9 +148,7 @@ show_welcome() {
     echo "╔══════════════════════════════════════════════════════════════╗"
     echo "║                    OpenList 管理脚本                         ║"
     echo "║                                                              ║"
-    echo "║                    Interactive Manager                       ║"
-    echo "║                                                              ║"
-    echo "║                        Version 1.2.0                        ║"
+    echo "║                   Interactive Manager                        ║"
     echo "╚══════════════════════════════════════════════════════════════╝"
     echo -e "${RES}"
     echo
@@ -518,8 +516,6 @@ EOF
     echo -e "${BLUE_COLOR}默认账号：${RES}admin"
     echo -e "${BLUE_COLOR}初始密码：${RES}请查看服务日志获取"
     echo
-    echo -e "${YELLOW_COLOR}查看密码命令：${RES}sudo journalctl -u openlist | grep 'initial password'"
-    echo
     
     read -p "按回车键继续..."
 }
@@ -534,7 +530,6 @@ update_openlist() {
     
     if [ ! -f "$INSTALL_PATH/openlist" ]; then
         echo -e "${RED_COLOR}错误：未找到已安装的 OpenList${RES}"
-        echo -e "${YELLOW_COLOR}请先安装 OpenList${RES}"
         read -p "按回车键继续..."
         return
     fi
@@ -767,28 +762,6 @@ show_status() {
     read -p "按回车键继续..."
 }
 
-# 服务控制
-control_service() {
-    local action="$1"
-    local action_name="$2"
-    
-    if [ ! -f "$INSTALL_PATH/openlist" ]; then
-        echo -e "${RED_COLOR}错误：OpenList 未安装${RES}"
-        read -p "按回车键继续..."
-        return
-    fi
-    
-    echo -e "${BLUE_COLOR}正在${action_name} OpenList...${RES}"
-    
-    if systemctl "$action" openlist; then
-        echo -e "${GREEN_COLOR}OpenList 已${action_name}${RES}"
-    else
-        echo -e "${RED_COLOR}操作失败${RES}"
-    fi
-    
-    sleep 2
-}
-
 # 查看日志
 show_logs() {
     echo -e "${CYAN_COLOR}"
@@ -846,47 +819,6 @@ show_logs() {
         echo
         read -p "按回车键继续..."
         break
-    done
-}
-
-# 高级功能菜单
-advanced_menu() {
-    while true; do
-        clear
-        echo -e "${CYAN_COLOR}"
-        echo "╔══════════════════════════════════════════════════════════════╗"
-        echo "║                       高级功能                              ║"
-        echo "╚══════════════════════════════════════════════════════════════╝"
-        echo -e "${RES}"
-        
-        echo -e "${GREEN_COLOR}1${RES}  - 查看详细状态"
-        echo -e "${GREEN_COLOR}2${RES}  - 查看日志"
-        echo -e "${GREEN_COLOR}3${RES}  - 备份配置"
-        echo -e "${GREEN_COLOR}4${RES}  - 恢复配置"
-        echo -e "${GREEN_COLOR}5${RES}  - 重置密码"
-        echo -e "${GREEN_COLOR}6${RES}  - 修改端口"
-        echo -e "${GREEN_COLOR}7${RES}  - 检查更新"
-        echo -e "${GREEN_COLOR}8${RES}  - 系统信息"
-        echo -e "${GREEN_COLOR}0${RES}  - 返回主菜单"
-        echo
-        
-        read -p "请输入选项 [0-8]: " choice
-        
-        case "$choice" in
-            1) show_status ;;
-            2) show_logs ;;
-            3) backup_config ;;
-            4) restore_config ;;
-            5) reset_password ;;
-            6) change_port ;;
-            7) check_update ;;
-            8) show_system_info ;;
-            0) break ;;
-            *) 
-                echo -e "${RED_COLOR}无效选项${RES}"
-                sleep 1
-                ;;
-        esac
     done
 }
 
@@ -1002,99 +934,29 @@ reset_password() {
     read -p "按回车键继续..."
 }
 
-# 修改端口
-change_port() {
-    echo -e "${CYAN_COLOR}修改端口${RES}"
-    echo -e "${YELLOW_COLOR}此功能需要修改配置文件${RES}"
-    echo -e "${YELLOW_COLOR}建议通过 Web 界面修改${RES}"
-    read -p "按回车键继续..."
-}
-
-# 检查更新
-check_update() {
-    echo -e "${CYAN_COLOR}检查更新${RES}"
-    
-    if [ ! -f "$VERSION_FILE" ]; then
-        echo -e "${YELLOW_COLOR}未找到版本信息${RES}"
-        read -p "按回车键继续..."
-        return
-    fi
-    
-    local current_version=$(head -n1 "$VERSION_FILE")
-    echo -e "${BLUE_COLOR}当前版本：${RES}$current_version"
-    
-    echo -e "${BLUE_COLOR}检查远程版本...${RES}"
-    
-    # 这里可以添加更复杂的版本检查逻辑
-    echo -e "${GREEN_COLOR}版本检查完成${RES}"
-    echo -e "${YELLOW_COLOR}如需更新，请使用更新功能${RES}"
-    
-    read -p "按回车键继续..."
-}
-
-# 显示系统信息
-show_system_info() {
+# 监控 OpenList 状态
+show_status() {
     echo -e "${CYAN_COLOR}"
     echo "╔══════════════════════════════════════════════════════════════╗"
-    echo "║                       系统信息                              ║"
+    echo "║                       OpenList 状态                          ║"
     echo "╚══════════════════════════════════════════════════════════════╝"
     echo -e "${RES}"
     
-    echo -e "${BLUE_COLOR}操作系统：${RES}"
-    cat /etc/os-release | grep PRETTY_NAME | cut -d'"' -f2
-    
-    echo -e "${BLUE_COLOR}内核版本：${RES}"
-    uname -r
-    
-    echo -e "${BLUE_COLOR}系统架构：${RES}"
-    uname -m
-    
-    echo -e "${BLUE_COLOR}CPU 信息：${RES}"
-    lscpu | grep "Model name" | cut -d':' -f2 | sed 's/^ *//'
-    
-    echo -e "${BLUE_COLOR}内存信息：${RES}"
-    free -h | grep Mem | awk '{print "总计: " $2 ", 已用: " $3 ", 可用: " $7}'
-    
-    echo -e "${BLUE_COLOR}磁盘信息：${RES}"
-    df -h / | tail -1 | awk '{print "总计: " $2 ", 已用: " $3 ", 可用: " $4 ", 使用率: " $5}'
-    
-    echo -e "${BLUE_COLOR}网络接口：${RES}"
-    ip addr show | grep -E "inet.*global" | awk '{print $2}' | head -3
+    if [ -f "$INSTALL_PATH/openlist" ]; then
+        if systemctl is-active openlist >/dev/null 2>&1; then
+            echo -e "${GREEN_COLOR}● OpenList 状态：运行中${RES}"
+        else
+            echo -e "${RED_COLOR}● OpenList 状态：已停止${RES}"
+        fi
+    else
+        echo -e "${YELLOW_COLOR}● OpenList 状态：未安装${RES}"
+    fi
     
     echo
     read -p "按回车键继续..."
 }
 
-# 迁移 Alist 数据到 OpenList
-migrate_alist_data() {
-    local alist_data_path="/opt/alist/data"
-    
-    echo -e "${CYAN_COLOR}开始迁移 Alist 数据到 OpenList...${RES}"
-    
-    # 检查 Alist 数据目录是否存在
-    if [ ! -d "$alist_data_path" ]; then
-        echo -e "${RED_COLOR}错误：未找到 Alist 数据目录 $alist_data_path${RES}"
-        read -p "按回车键继续..."
-        return
-    fi
-
-    # 创建 OpenList 数据目录（如果不存在）
-    mkdir -p "$INSTALL_PATH/data"
-    
-    # 复制 Alist 数据
-    echo -e "${BLUE_COLOR}正在复制数据...${RES}"
-    cp -r "$alist_data_path/"* "$INSTALL_PATH/data/"
-    
-    if [ $? -eq 0 ]; then
-        echo -e "${GREEN_COLOR}数据迁移成功！${RES}"
-    else
-        echo -e "${RED_COLOR}数据迁移失败！${RES}"
-    fi
-    
-    read -p "按回车键继续..."
-}
-
-# 在主菜单中添加迁移选项
+# 主菜单
 show_main_menu() {
     while true; do
         clear
@@ -1122,7 +984,7 @@ show_main_menu() {
         echo -e "${GREEN_COLOR}1${RES}  - 安装 OpenList"
         echo -e "${GREEN_COLOR}2${RES}  - 更新 OpenList"
         echo -e "${GREEN_COLOR}3${RES}  - 卸载 OpenList"
-        echo -e "${GREEN_COLOR}4${RES}  - 迁移 Alist 数据到 OpenList"  # 新增迁移选项
+        echo -e "${GREEN_COLOR}4${RES}  - 迁移 Alist 数据到 OpenList"
         echo
         echo -e "${PURPLE_COLOR}═══ 服务管理 ═══${RES}"
         echo -e "${GREEN_COLOR}5${RES}  - 启动服务"
@@ -1159,13 +1021,8 @@ show_main_menu() {
 
 # 主程序入口
 main() {
-    # 显示欢迎信息
     show_welcome
-    
-    # 检查系统要求
     check_system_requirements
-    
-    # 显示主菜单
     show_main_menu
 }
 
