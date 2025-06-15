@@ -3,7 +3,7 @@
 #
 # OpenList Interactive Manager Script
 #
-# Version: 1.2.0
+# Version: 1.3.0
 # Last Updated: 2025-06-15
 #
 # Description: 
