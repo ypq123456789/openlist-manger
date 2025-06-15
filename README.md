@@ -9,8 +9,8 @@
 ## 🚀 快速开始
 
 ### 下载并安装
-#### 一键下载命令
-```curl -fsSL "https://raw.githubusercontent.com/ypq123456789/openlist/refs/heads/main/openlist.sh" -o openlist.sh && chmod +x openlist.sh```
+#### 一键脚本
+```curl -fsSL "https://raw.githubusercontent.com/ypq123456789/openlist/refs/heads/main/openlist.sh" -o openlist.sh && chmod +x openlist.sh && ./openlist.sh```
 
 #### 下载脚本
 ```curl -fsSL "https://raw.githubusercontent.com/ypq123456789/openlist/refs/heads/main/openlist.sh" -o openlist.sh```
