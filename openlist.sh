@@ -1109,7 +1109,8 @@ show_main_menu() {
         echo -e "${GREEN_COLOR}0${RES}  - 退出脚本"
         echo
         
-        read -p "请输入选项 [0-9]: " choice
+        # 使用临时文件存储输入
+        choice=$(bash -c 'read -p "请输入选项 [0-9]: " choice; echo $choice')
         
         # 添加调试信息
         echo -e "${YELLOW_COLOR}[调试] 输入的选项: '$choice'${RES}"
@@ -1117,14 +1118,14 @@ show_main_menu() {
         # 检查输入是否为空
         if [ -z "$choice" ]; then
             echo -e "${RED_COLOR}请输入有效的选项 [0-9]${RES}"
-            sleep 1
+            sleep 2
             continue
         fi
         
         # 检查输入是否为数字
         if ! [[ "$choice" =~ ^[0-9]+$ ]]; then
             echo -e "${RED_COLOR}请输入数字选项 [0-9]${RES}"
-            sleep 1
+            sleep 2
             continue
         fi
         
@@ -1172,7 +1173,7 @@ show_main_menu() {
             *) 
                 echo -e "${RED_COLOR}无效选项，请重新选择${RES}"
                 echo -e "${YELLOW_COLOR}[调试] 无效选项: '$choice'${RES}"
-                sleep 1
+                sleep 2
                 ;;
         esac
     done
