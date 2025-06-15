@@ -1112,15 +1112,33 @@ show_main_menu() {
         read -p "请输入选项 [0-9]: " choice
         
         case "$choice" in
-            1) install_openlist ;;
-            2) update_openlist ;;
-            3) uninstall_openlist ;;
-            4) migrate_alist_data ;;
-            5) control_service start "启动" ;;
-            6) control_service stop "停止" ;;
-            7) control_service restart "重启" ;;
-            8) show_status ;;
-            9) show_logs ;;
+            1) 
+                install_openlist
+                ;;
+            2) 
+                update_openlist
+                ;;
+            3) 
+                uninstall_openlist
+                ;;
+            4) 
+                migrate_alist_data
+                ;;
+            5) 
+                control_service start "启动"
+                ;;
+            6) 
+                control_service stop "停止"
+                ;;
+            7) 
+                control_service restart "重启"
+                ;;
+            8) 
+                show_status
+                ;;
+            9) 
+                show_logs
+                ;;
             0) 
                 echo -e "${GREEN_COLOR}谢谢使用！${RES}"
                 exit 0
