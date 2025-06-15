@@ -27,7 +27,7 @@
 GITHUB_REPO="OpenListTeam/OpenList"
 VERSION_TAG="beta"
 VERSION_FILE="/opt/openlist/.version"
-MANAGER_VERSION="1.4.1"  # 更新管理器版本号
+MANAGER_VERSION="1.4.2"  # 更新管理器版本号
 
 # 颜色配置
 RED_COLOR='\e[1;31m'
@@ -932,6 +932,74 @@ reset_password() {
     read -r -p "按回车键继续..." < /dev/tty
 }
 
+# 管理密码
+manage_password() {
+    echo -e "${CYAN_COLOR}"
+    echo "╔══════════════════════════════════════════════════════════════╗"
+    echo "║                    管理管理员密码                            ║"
+    echo "╚══════════════════════════════════════════════════════════════╝"
+    echo -e "${RES}"
+
+    if [ ! -f "$INSTALL_PATH/openlist" ]; then
+        echo -e "${RED_COLOR}错误：OpenList 未安装${RES}"
+        read -r -p "按回车键继续..." < /dev/tty
+        return
+    fi
+
+    echo -e "${BLUE_COLOR}请选择操作：${RES}"
+    echo -e "${GREEN_COLOR}1${RES} - 随机生成新密码"
+    echo -e "${GREEN_COLOR}2${RES} - 手动设置新密码"
+    echo -e "${GREEN_COLOR}3${RES} - 返回"
+    echo
+
+    local choice
+    while true; do
+        read -r -p "请输入选项 [1-3]: " choice < /dev/tty
+        case "$choice" in
+            1)
+                echo -e "${BLUE_COLOR}正在生成随机密码...${RES}"
+                local output
+                output=$($INSTALL_PATH/openlist admin random)
+                
+                echo -e "${GREEN_COLOR}操作完成！${RES}"
+                echo -e "${BLUE_COLOR}命令输出:${RES}"
+                echo -e "$output"
+
+                local new_password
+                new_password=$(echo "$output" | grep -i "new password" | awk -F': ' '{print $2}')
+                if [ -n "$new_password" ]; then
+                    echo -e "${GREEN_COLOR}成功生成新密码: $new_password${RES}"
+                else
+                    echo -e "${YELLOW_COLOR}无法从输出中自动提取密码，请查看上面的完整命令输出。${RES}"
+                fi
+                break
+                ;;
+            2)
+                local new_password
+                read -r -p "请输入新的管理员密码: " new_password < /dev/tty
+                if [ -z "$new_password" ]; then
+                    echo -e "${RED_COLOR}密码不能为空！${RES}"
+                    continue
+                fi
+
+                echo -e "${BLUE_COLOR}正在设置新密码...${RES}"
+                $INSTALL_PATH/openlist admin set "$new_password"
+                echo -e "${GREEN_COLOR}密码设置命令已执行。${RES}"
+                echo -e "${YELLOW_COLOR}请尝试使用新密码登录以验证是否成功。${RES}"
+                break
+                ;;
+            3)
+                return
+                ;;
+            *)
+                echo -e "${RED_COLOR}无效选项${RES}"
+                ;;
+        esac
+    done
+
+    read -r -p "按回车键继续..." < /dev/tty
+}
+
 # 控制服务
 control_service() {
     local action=$1
@@ -1135,25 +1203,29 @@ show_main_menu() {
         echo -e "${GREEN_COLOR}7${RES}  - 重启服务"
         echo -e "${GREEN_COLOR}8${RES}  - 查看状态"
         echo -e "${GREEN_COLOR}9${RES}  - 查看日志"
+        echo
+        echo -e "${PURPLE_COLOR}═══ 高级操作 ═══${RES}"
+        echo -e "${GREEN_COLOR}10${RES} - 修改管理员密码"
+        echo
         echo -e "${GREEN_COLOR}0${RES}  - 退出脚本"
         echo
         
         # 强制从终端读取输入，以解决在特殊环境下（如通过管道或在某些 shell 中执行）的输入问题
-        read -p "请输入选项 [0-9]: " -r choice < /dev/tty
+        read -p "请输入选项 [0-10]: " -r choice < /dev/tty
         
         # 添加调试信息
         echo -e "${YELLOW_COLOR}[调试] 输入的选项: '$choice'${RES}"
         
         # 检查输入是否为空
         if [ -z "$choice" ]; then
-            echo -e "${RED_COLOR}请输入有效的选项 [0-9]${RES}"
+            echo -e "${RED_COLOR}请输入有效的选项 [0-10]${RES}"
             sleep 2
             continue
         fi
         
         # 检查输入是否为数字
         if ! [[ "$choice" =~ ^[0-9]+$ ]]; then
-            echo -e "${RED_COLOR}请输入数字选项 [0-9]${RES}"
+            echo -e "${RED_COLOR}请输入数字选项 [0-10]${RES}"
             sleep 2
             continue
         fi
@@ -1194,6 +1266,10 @@ show_main_menu() {
             9) 
                 echo -e "${YELLOW_COLOR}[调试] 执行: show_logs${RES}"
                 show_logs
+                ;;
+            10)
+                echo -e "${YELLOW_COLOR}[调试] 执行: manage_password${RES}"
+                manage_password
                 ;;
             0) 
                 echo -e "${GREEN_COLOR}谢谢使用！${RES}"
