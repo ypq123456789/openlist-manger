@@ -956,6 +956,134 @@ show_status() {
     read -p "按回车键继续..."
 }
 
+# 控制服务
+control_service() {
+    local action=$1
+    local action_desc=$2
+    
+    echo -e "${CYAN_COLOR}"
+    echo "╔══════════════════════════════════════════════════════════════╗"
+    echo "║                    OpenList 服务控制                         ║"
+    echo "╚══════════════════════════════════════════════════════════════╝"
+    echo -e "${RES}"
+    
+    if [ ! -f "$INSTALL_PATH/openlist" ]; then
+        echo -e "${RED_COLOR}错误：OpenList 未安装${RES}"
+        read -p "按回车键继续..."
+        return
+    fi
+    
+    case "$action" in
+        start)
+            echo -e "${BLUE_COLOR}正在启动 OpenList 服务...${RES}"
+            systemctl start openlist
+            ;;
+        stop)
+            echo -e "${BLUE_COLOR}正在停止 OpenList 服务...${RES}"
+            systemctl stop openlist
+            ;;
+        restart)
+            echo -e "${BLUE_COLOR}正在重启 OpenList 服务...${RES}"
+            systemctl restart openlist
+            ;;
+        *)
+            echo -e "${RED_COLOR}无效的操作${RES}"
+            read -p "按回车键继续..."
+            return
+            ;;
+    esac
+    
+    # 等待服务状态变化
+    sleep 2
+    
+    # 检查服务状态
+    if systemctl is-active openlist >/dev/null 2>&1; then
+        echo -e "${GREEN_COLOR}OpenList 服务已成功${action_desc}${RES}"
+    else
+        echo -e "${RED_COLOR}OpenList 服务${action_desc}失败${RES}"
+    fi
+    
+    read -p "按回车键继续..."
+}
+
+# 迁移 Alist 数据
+migrate_alist_data() {
+    echo -e "${CYAN_COLOR}"
+    echo "╔══════════════════════════════════════════════════════════════╗"
+    echo "║                    Alist 数据迁移                            ║"
+    echo "╚══════════════════════════════════════════════════════════════╝"
+    echo -e "${RES}"
+    
+    if [ ! -f "$INSTALL_PATH/openlist" ]; then
+        echo -e "${RED_COLOR}错误：OpenList 未安装${RES}"
+        read -p "按回车键继续..."
+        return
+    fi
+    
+    # 检查 Alist 是否安装
+    if [ ! -f "/opt/alist/alist" ]; then
+        echo -e "${RED_COLOR}错误：未找到 Alist 安装${RES}"
+        echo -e "${YELLOW_COLOR}请确保 Alist 已安装在 /opt/alist 目录${RES}"
+        read -p "按回车键继续..."
+        return
+    fi
+    
+    echo -e "${YELLOW_COLOR}警告：此操作将迁移 Alist 的配置数据到 OpenList${RES}"
+    echo -e "${YELLOW_COLOR}建议在迁移前备份 Alist 数据${RES}"
+    echo
+    read -p "确认迁移？[y/N]: " confirm
+    
+    case "$confirm" in
+        [yY])
+            # 停止两个服务
+            echo -e "${BLUE_COLOR}停止服务...${RES}"
+            systemctl stop alist
+            systemctl stop openlist
+            
+            # 备份 OpenList 数据
+            echo -e "${BLUE_COLOR}备份 OpenList 数据...${RES}"
+            if [ -d "$INSTALL_PATH/data" ]; then
+                mv "$INSTALL_PATH/data" "$INSTALL_PATH/data.backup.$(date +%Y%m%d_%H%M%S)"
+            fi
+            
+            # 创建数据目录
+            mkdir -p "$INSTALL_PATH/data"
+            
+            # 复制 Alist 数据
+            echo -e "${BLUE_COLOR}迁移数据...${RES}"
+            if [ -f "/opt/alist/data/data.db" ]; then
+                cp "/opt/alist/data/data.db" "$INSTALL_PATH/data/"
+                echo -e "${GREEN_COLOR}数据库迁移成功${RES}"
+            else
+                echo -e "${RED_COLOR}未找到 Alist 数据库文件${RES}"
+            fi
+            
+            if [ -f "/opt/alist/data/config.json" ]; then
+                cp "/opt/alist/data/config.json" "$INSTALL_PATH/data/"
+                echo -e "${GREEN_COLOR}配置文件迁移成功${RES}"
+            else
+                echo -e "${RED_COLOR}未找到 Alist 配置文件${RES}"
+            fi
+            
+            # 设置权限
+            chown -R root:root "$INSTALL_PATH/data"
+            chmod -R 755 "$INSTALL_PATH/data"
+            
+            # 启动 OpenList
+            echo -e "${BLUE_COLOR}启动 OpenList 服务...${RES}"
+            systemctl start openlist
+            
+            echo -e "${GREEN_COLOR}数据迁移完成${RES}"
+            echo -e "${YELLOW_COLOR}请检查 OpenList 是否正常运行${RES}"
+            ;;
+        *)
+            echo -e "${YELLOW_COLOR}已取消迁移${RES}"
+            ;;
+    esac
+    
+    read -p "按回车键继续..."
+}
+
 # 主菜单
 show_main_menu() {
     while true; do
@@ -1001,7 +1129,7 @@ show_main_menu() {
             1) install_openlist ;;
             2) update_openlist ;;
             3) uninstall_openlist ;;
-            4) migrate_alist_data ;;  # 调用迁移功能
+            4) migrate_alist_data ;;
             5) control_service start "启动" ;;
             6) control_service stop "停止" ;;
             7) control_service restart "重启" ;;
