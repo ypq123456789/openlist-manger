@@ -3,7 +3,7 @@
 #
 # OpenList Interactive Manager Script
 #
-# Version: 1.3.0
+# Version: 1.3.1
 # Last Updated: 2025-06-15
 #
 # Description: 
@@ -22,6 +22,21 @@
 #   sudo ./openlist.sh
 #
 ###############################################################################
+
+# 配置部分
+GITHUB_REPO="OpenListTeam/OpenList"
+VERSION_TAG="beta"
+VERSION_FILE="/opt/openlist/.version"
+MANAGER_VERSION="1.3.0"  # 添加管理器版本号
+
+# 颜色配置
+RED_COLOR='\e[1;31m'
+GREEN_COLOR='\e[1;32m'
+YELLOW_COLOR='\e[1;33m'
+BLUE_COLOR='\e[1;34m'
+CYAN_COLOR='\e[1;36m'
+PURPLE_COLOR='\e[1;35m'
+RES='\e[0m'
 
 # 错误处理函数
 handle_error() {
@@ -53,20 +68,6 @@ check_dependencies() {
         exit 1
     fi
 }
-
-# 配置部分
-GITHUB_REPO="OpenListTeam/OpenList"
-VERSION_TAG="beta"
-VERSION_FILE="/opt/openlist/.version"
-
-# 颜色配置
-RED_COLOR='\e[1;31m'
-GREEN_COLOR='\e[1;32m'
-YELLOW_COLOR='\e[1;33m'
-BLUE_COLOR='\e[1;34m'
-CYAN_COLOR='\e[1;36m'
-PURPLE_COLOR='\e[1;35m'
-RES='\e[0m'
 
 # 获取已安装的路径
 get_installed_path() {
@@ -1067,7 +1068,7 @@ show_main_menu() {
         echo "╔══════════════════════════════════════════════════════════════╗"
         echo "║                    OpenList 管理脚本                         ║"
         echo "║                                                              ║"
-        echo "║                   Interactive Manager                        ║"
+        echo "║                   Interactive Manager v${MANAGER_VERSION}                ║"
         echo "╚══════════════════════════════════════════════════════════════╝"
         echo -e "${RES}"
         
