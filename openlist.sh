@@ -1103,6 +1103,16 @@ show_main_menu() {
             else
                 echo -e "${RED_COLOR}● OpenList 状态：已停止${RES}"
             fi
+            
+            # 显示版本信息
+            if [ -f "$VERSION_FILE" ]; then
+                local version=$(head -n1 "$VERSION_FILE" 2>/dev/null)
+                local install_time=$(tail -n1 "$VERSION_FILE" 2>/dev/null)
+                echo -e "${BLUE_COLOR}● 当前版本：${RES}$version"
+                echo -e "${BLUE_COLOR}● 安装时间：${RES}$install_time"
+            else
+                echo -e "${YELLOW_COLOR}● 版本信息：未知${RES}"
+            fi
         else
             echo -e "${YELLOW_COLOR}● OpenList 状态：未安装${RES}"
         fi
