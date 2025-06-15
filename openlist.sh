@@ -1065,7 +1065,36 @@ show_system_info() {
     read -p "按回车键继续..."
 }
 
-# 主菜单
+# 迁移 Alist 数据到 OpenList
+migrate_alist_data() {
+    local alist_data_path="/opt/alist/data"
+    
+    echo -e "${CYAN_COLOR}开始迁移 Alist 数据到 OpenList...${RES}"
+    
+    # 检查 Alist 数据目录是否存在
+    if [ ! -d "$alist_data_path" ]; then
+        echo -e "${RED_COLOR}错误：未找到 Alist 数据目录 $alist_data_path${RES}"
+        read -p "按回车键继续..."
+        return
+    fi
+
+    # 创建 OpenList 数据目录（如果不存在）
+    mkdir -p "$INSTALL_PATH/data"
+    
+    # 复制 Alist 数据
+    echo -e "${BLUE_COLOR}正在复制数据...${RES}"
+    cp -r "$alist_data_path/"* "$INSTALL_PATH/data/"
+    
+    if [ $? -eq 0 ]; then
+        echo -e "${GREEN_COLOR}数据迁移成功！${RES}"
+    else
+        echo -e "${RED_COLOR}数据迁移失败！${RES}"
+    fi
+    
+    read -p "按回车键继续..."
+}
+
+# 在主菜单中添加迁移选项
 show_main_menu() {
     while true; do
         clear
@@ -1093,17 +1122,14 @@ show_main_menu() {
         echo -e "${GREEN_COLOR}1${RES}  - 安装 OpenList"
         echo -e "${GREEN_COLOR}2${RES}  - 更新 OpenList"
         echo -e "${GREEN_COLOR}3${RES}  - 卸载 OpenList"
+        echo -e "${GREEN_COLOR}4${RES}  - 迁移 Alist 数据到 OpenList"  # 新增迁移选项
         echo
         echo -e "${PURPLE_COLOR}═══ 服务管理 ═══${RES}"
-        echo -e "${GREEN_COLOR}4${RES}  - 启动服务"
-        echo -e "${GREEN_COLOR}5${RES}  - 停止服务"
-        echo -e "${GREEN_COLOR}6${RES}  - 重启服务"
-        echo -e "${GREEN_COLOR}7${RES}  - 查看状态"
-        echo
-        echo -e "${PURPLE_COLOR}═══ 高级功能 ═══${RES}"
-        echo -e "${GREEN_COLOR}8${RES}  - 高级功能"
+        echo -e "${GREEN_COLOR}5${RES}  - 启动服务"
+        echo -e "${GREEN_COLOR}6${RES}  - 停止服务"
+        echo -e "${GREEN_COLOR}7${RES}  - 重启服务"
+        echo -e "${GREEN_COLOR}8${RES}  - 查看状态"
         echo -e "${GREEN_COLOR}9${RES}  - 查看日志"
-        echo
         echo -e "${GREEN_COLOR}0${RES}  - 退出脚本"
         echo
         
@@ -1113,11 +1139,11 @@ show_main_menu() {
             1) install_openlist ;;
             2) update_openlist ;;
             3) uninstall_openlist ;;
-            4) control_service start "启动" ;;
-            5) control_service stop "停止" ;;
-            6) control_service restart "重启" ;;
-            7) show_status ;;
-            8) advanced_menu ;;
+            4) migrate_alist_data ;;  # 调用迁移功能
+            5) control_service start "启动" ;;
+            6) control_service stop "停止" ;;
+            7) control_service restart "重启" ;;
+            8) show_status ;;
             9) show_logs ;;
             0) 
                 echo -e "${GREEN_COLOR}谢谢使用！${RES}"
