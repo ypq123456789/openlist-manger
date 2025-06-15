@@ -8,24 +8,18 @@
 
 ## 🚀 快速开始
 
-### 一键安装
+### 下载并安装
+#### 一键下载命令
+```curl -fsSL "https://raw.githubusercontent.com/ypq123456789/openlist/refs/heads/main/openlist.sh" -o openlist.sh && chmod +x openlist.sh```
 
-```bash
-curl -fsSL "https://raw.githubusercontent.com/ypq123456789/openlist/refs/heads/main/openlist.sh" | bash -s install
-```
+#### 下载脚本
+```curl -fsSL "https://raw.githubusercontent.com/ypq123456789/openlist/refs/heads/main/openlist.sh" -o openlist.sh```
 
-### 手动下载安装
+#### 设置执行权限
+```chmod +x openlist.sh```
 
-```bash
-# 下载脚本
-curl -fsSL "https://raw.githubusercontent.com/ypq123456789/openlist/refs/heads/main/openlist.sh" -o openlist.sh
-
-# 设置执行权限
-chmod +x openlist.sh
-
-# 执行安装
-sudo ./openlist.sh install
-```
+#### 运行脚本（交互式）
+```sudo ./openlist.sh```
 
 ## 📋 系统要求
 
