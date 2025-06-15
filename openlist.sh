@@ -706,56 +706,53 @@ uninstall_openlist() {
     read -p "按回车键继续..."
 }
 
-# 查看状态
+# 监控 OpenList 状态
 show_status() {
     echo -e "${CYAN_COLOR}"
     echo "╔══════════════════════════════════════════════════════════════╗"
-    echo "║                       服务状态                              ║"
+    echo "║                       OpenList 状态                          ║"
     echo "╚══════════════════════════════════════════════════════════════╝"
     echo -e "${RES}"
     
-    if [ ! -f "$INSTALL_PATH/openlist" ]; then
-        echo -e "${RED_COLOR}OpenList 未安装${RES}"
-        read -p "按回车键继续..."
-        return
-    fi
-    
-    # 服务状态
-    echo -e "${BLUE_COLOR}服务状态：${RES}"
-    if systemctl is-active openlist >/dev/null 2>&1; then
-        echo -e "${GREEN_COLOR}● 运行中${RES}"
-    else
-        echo -e "${RED_COLOR}● 已停止${RES}"
-    fi
-    
-    # 版本信息
-    echo -e "${BLUE_COLOR}版本信息：${RES}"
-    if [ -f "$VERSION_FILE" ]; then
-        cat "$VERSION_FILE"
-    else
-        echo -e "${YELLOW_COLOR}未知版本${RES}"
-    fi
-    
-    # 文件信息
-    echo -e "${BLUE_COLOR}文件信息：${RES}"
-    echo -e "安装路径: $INSTALL_PATH"
-    echo -e "配置文件: $INSTALL_PATH/data/config.json"
     if [ -f "$INSTALL_PATH/openlist" ]; then
-        echo -e "文件大小: $(ls -lh "$INSTALL_PATH/openlist" | awk '{print $5}')"
-        echo -e "修改时间: $(stat -c %y "$INSTALL_PATH/openlist" | cut -d. -f1)"
-    fi
-    
-    # 网络信息
-    echo -e "${BLUE_COLOR}访问信息：${RES}"
-    local local_ip=$(ip addr show | grep -w inet | grep -v "127.0.0.1" | awk '{print $2}' | cut -d/ -f1 | head -n1)
-    echo -e "本地访问: http://127.0.0.1:5244/"
-    echo -e "局域网访问: http://${local_ip}:5244/"
-    
-    # 端口状态
-    if ss -tlnp 2>/dev/null | grep -q ":5244"; then
-        echo -e "${GREEN_COLOR}端口 5244: 已监听${RES}"
+        if systemctl is-active openlist >/dev/null 2>&1; then
+            echo -e "${GREEN_COLOR}● OpenList 状态：运行中${RES}"
+        else
+            echo -e "${RED_COLOR}● OpenList 状态：已停止${RES}"
+        fi
+        
+        # 显示版本信息
+        if [ -f "$VERSION_FILE" ]; then
+            local version=$(head -n1 "$VERSION_FILE" 2>/dev/null)
+            local install_time=$(tail -n1 "$VERSION_FILE" 2>/dev/null)
+            echo -e "${BLUE_COLOR}● 当前版本：${RES}$version"
+            echo -e "${BLUE_COLOR}● 安装时间：${RES}$install_time"
+        else
+            echo -e "${YELLOW_COLOR}● 版本信息：未知${RES}"
+        fi
+        
+        # 显示文件信息
+        echo -e "${BLUE_COLOR}● 安装路径：${RES}$INSTALL_PATH"
+        echo -e "${BLUE_COLOR}● 配置文件：${RES}$INSTALL_PATH/data/config.json"
+        if [ -f "$INSTALL_PATH/openlist" ]; then
+            echo -e "${BLUE_COLOR}● 文件大小：${RES}$(ls -lh "$INSTALL_PATH/openlist" | awk '{print $5}')"
+            echo -e "${BLUE_COLOR}● 修改时间：${RES}$(stat -c %y "$INSTALL_PATH/openlist" | cut -d. -f1)"
+        fi
+        
+        # 显示网络信息
+        local local_ip=$(ip addr show | grep -w inet | grep -v "127.0.0.1" | awk '{print $2}' | cut -d/ -f1 | head -n1)
+        echo -e "${BLUE_COLOR}● 访问地址：${RES}"
+        echo -e "  本地访问: http://127.0.0.1:5244/"
+        echo -e "  局域网访问: http://${local_ip}:5244/"
+        
+        # 显示端口状态
+        if ss -tlnp 2>/dev/null | grep -q ":5244"; then
+            echo -e "${GREEN_COLOR}● 端口 5244: 已监听${RES}"
+        else
+            echo -e "${RED_COLOR}● 端口 5244: 未监听${RES}"
+        fi
     else
-        echo -e "${RED_COLOR}端口 5244: 未监听${RES}"
+        echo -e "${YELLOW_COLOR}● OpenList 状态：未安装${RES}"
     fi
     
     echo
@@ -931,28 +928,6 @@ reset_password() {
         echo -e "请查看日志：sudo journalctl -u openlist -f"
     fi
     
-    read -p "按回车键继续..."
-}
-
-# 监控 OpenList 状态
-show_status() {
-    echo -e "${CYAN_COLOR}"
-    echo "╔══════════════════════════════════════════════════════════════╗"
-    echo "║                       OpenList 状态                          ║"
-    echo "╚══════════════════════════════════════════════════════════════╝"
-    echo -e "${RES}"
-    
-    if [ -f "$INSTALL_PATH/openlist" ]; then
-        if systemctl is-active openlist >/dev/null 2>&1; then
-            echo -e "${GREEN_COLOR}● OpenList 状态：运行中${RES}"
-        else
-            echo -e "${RED_COLOR}● OpenList 状态：已停止${RES}"
-        fi
-    else
-        echo -e "${YELLOW_COLOR}● OpenList 状态：未安装${RES}"
-    fi
-    
-    echo
     read -p "按回车键继续..."
 }
 
