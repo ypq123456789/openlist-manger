@@ -3,7 +3,7 @@
 #
 # OpenList Interactive Manager Script
 #
-# Version: 1.3.2
+# Version: 1.3.3
 # Last Updated: 2025-06-15
 #
 # Description: 
@@ -27,7 +27,7 @@
 GITHUB_REPO="OpenListTeam/OpenList"
 VERSION_TAG="beta"
 VERSION_FILE="/opt/openlist/.version"
-MANAGER_VERSION="1.3.2"  # 添加管理器版本号
+MANAGER_VERSION="1.3.3"  # 添加管理器版本号
 
 # 颜色配置
 RED_COLOR='\e[1;31m'
@@ -1111,32 +1111,44 @@ show_main_menu() {
         
         read -p "请输入选项 [0-9]: " choice
         
+        # 添加调试信息
+        echo -e "${YELLOW_COLOR}[调试] 输入的选项: '$choice'${RES}"
+        
         case "$choice" in
             1) 
+                echo -e "${YELLOW_COLOR}[调试] 执行: install_openlist${RES}"
                 install_openlist
                 ;;
             2) 
+                echo -e "${YELLOW_COLOR}[调试] 执行: update_openlist${RES}"
                 update_openlist
                 ;;
             3) 
+                echo -e "${YELLOW_COLOR}[调试] 执行: uninstall_openlist${RES}"
                 uninstall_openlist
                 ;;
             4) 
+                echo -e "${YELLOW_COLOR}[调试] 执行: migrate_alist_data${RES}"
                 migrate_alist_data
                 ;;
             5) 
+                echo -e "${YELLOW_COLOR}[调试] 执行: control_service start${RES}"
                 control_service start "启动"
                 ;;
             6) 
+                echo -e "${YELLOW_COLOR}[调试] 执行: control_service stop${RES}"
                 control_service stop "停止"
                 ;;
             7) 
+                echo -e "${YELLOW_COLOR}[调试] 执行: control_service restart${RES}"
                 control_service restart "重启"
                 ;;
             8) 
+                echo -e "${YELLOW_COLOR}[调试] 执行: show_status${RES}"
                 show_status
                 ;;
             9) 
+                echo -e "${YELLOW_COLOR}[调试] 执行: show_logs${RES}"
                 show_logs
                 ;;
             0) 
@@ -1145,6 +1157,7 @@ show_main_menu() {
                 ;;
             *) 
                 echo -e "${RED_COLOR}无效选项，请重新选择${RES}"
+                echo -e "${YELLOW_COLOR}[调试] 无效选项: '$choice'${RES}"
                 sleep 1
                 ;;
         esac
