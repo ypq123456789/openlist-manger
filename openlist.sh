@@ -1253,6 +1253,7 @@ exec_openlist_docker() {
         echo -e "${RED_COLOR}未找到 OpenList 容器${RES}"
         return
     fi
+    echo -e "${YELLOW_COLOR}提示：进入容器后，输入 exit 可返回本脚本交互界面，无需重新运行脚本。${RES}"
     echo -e "${BLUE_COLOR}进入 OpenList 容器...${RES}"
     docker exec -it "$cname" /bin/sh
 }
