@@ -3,8 +3,8 @@
 #
 # OpenList Interactive Manager Script
 #
-# Version: 1.3.3
-# Last Updated: 2025-06-15
+# Version: 1.4.7
+# Last Updated: 2025-06-19
 #
 # Description: 
 #   An interactive management script for OpenList
@@ -27,7 +27,7 @@
 GITHUB_REPO="OpenListTeam/OpenList"
 VERSION_TAG="beta"
 VERSION_FILE="/opt/openlist/.version"
-MANAGER_VERSION="1.4.2"  # 更新管理器版本号
+MANAGER_VERSION="1.4.7"  # 更新管理器版本号
 
 # 颜色配置
 RED_COLOR='\e[1;31m'
@@ -37,6 +37,41 @@ BLUE_COLOR='\e[1;34m'
 CYAN_COLOR='\e[1;36m'
 PURPLE_COLOR='\e[1;35m'
 RES='\e[0m'
+
+# ===================== Docker 镜像标签选择 =====================
+DOCKER_IMAGE_TAG="beta"
+
+select_docker_image_tag() {
+    echo -e "${BLUE_COLOR}请选择要使用的 OpenList Docker 镜像标签：${RES}"
+    echo -e "${GREEN_COLOR}1${RES} - beta-ffmpeg"
+    echo -e "${GREEN_COLOR}2${RES} - beta-aio"
+    echo -e "${GREEN_COLOR}3${RES} - beta-aria2"
+    echo -e "${GREEN_COLOR}4${RES} - beta (默认)"
+    echo -e "${GREEN_COLOR}5${RES} - 手动输入标签"
+    echo
+    read -r -p "请输入选项 [1-5] (默认4): " tag_choice < /dev/tty
+    case "$tag_choice" in
+        1)
+            DOCKER_IMAGE_TAG="beta-ffmpeg";;
+        2)
+            DOCKER_IMAGE_TAG="beta-aio";;
+        3)
+            DOCKER_IMAGE_TAG="beta-aria2";;
+        4|"")
+            DOCKER_IMAGE_TAG="beta";;
+        5)
+            read -r -p "请输入自定义标签: " custom_tag < /dev/tty
+            if [ -n "$custom_tag" ]; then
+                DOCKER_IMAGE_TAG="$custom_tag"
+            else
+                DOCKER_IMAGE_TAG="beta"
+            fi
+            ;;
+        *)
+            DOCKER_IMAGE_TAG="beta";;
+    esac
+    echo -e "${GREEN_COLOR}已选择镜像标签: $DOCKER_IMAGE_TAG${RES}"
+}
 
 # 错误处理函数
 handle_error() {
@@ -1157,6 +1192,151 @@ check_disk_space() {
     fi
 }
 
+# ===================== Docker 相关函数 =====================
+
+# 检查 Docker 是否安装
+check_docker_installed() {
+    if ! command -v docker >/dev/null 2>&1; then
+        echo -e "${YELLOW_COLOR}未检测到 Docker，正在自动安装...${RES}"
+        if [ -f /etc/os-release ]; then
+            . /etc/os-release
+            if [[ $ID == "ubuntu" || $ID == "debian" ]]; then
+                apt update && apt install -y docker.io || handle_error 1 "Docker 安装失败"
+            elif [[ $ID == "centos" || $ID == "rhel" ]]; then
+                yum install -y docker || handle_error 1 "Docker 安装失败"
+            else
+                echo -e "${RED_COLOR}不支持的系统，请手动安装 Docker${RES}"
+                exit 1
+            fi
+        fi
+        systemctl enable docker && systemctl start docker
+        echo -e "${GREEN_COLOR}Docker 安装完成${RES}"
+    else
+        echo -e "${GREEN_COLOR}已检测到 Docker${RES}"
+    fi
+}
+
+# 通过镜像名查找 OpenList 容器ID
+find_openlist_container() {
+    docker ps -a --format '{{.ID}} {{.Image}} {{.Names}}' | grep "ghcr.io/openlistteam/openlist-git:$DOCKER_IMAGE_TAG" | awk '{print $1}' | head -n1
+}
+
+# 通过镜像名查找 OpenList 容器名称
+find_openlist_container_name() {
+    docker ps -a --format '{{.ID}} {{.Image}} {{.Names}}' | grep "ghcr.io/openlistteam/openlist-git:$DOCKER_IMAGE_TAG" | awk '{print $3}' | head -n1
+}
+
+# 拉取镜像并运行容器
+install_openlist_docker() {
+    select_docker_image_tag
+    check_docker_installed
+    echo -e "${BLUE_COLOR}拉取 OpenList 镜像...${RES}"
+    docker pull ghcr.io/openlistteam/openlist-git:$DOCKER_IMAGE_TAG || handle_error 1 "镜像拉取失败"
+    # 检查是否已存在容器
+    local cid=$(find_openlist_container)
+    if [ -n "$cid" ]; then
+        echo -e "${YELLOW_COLOR}已存在 OpenList 容器，尝试启动...${RES}"
+        docker start $(find_openlist_container_name)
+    else
+        echo -e "${BLUE_COLOR}创建并启动 OpenList 容器...${RES}"
+        docker run -d --name openlist -p 5244:5244 --restart unless-stopped ghcr.io/openlistteam/openlist-git:$DOCKER_IMAGE_TAG || handle_error 1 "容器启动失败"
+    fi
+    echo -e "${GREEN_COLOR}OpenList Docker 容器已启动 (镜像: $DOCKER_IMAGE_TAG)${RES}"
+    sleep 2
+}
+
+# 进入容器
+exec_openlist_docker() {
+    check_docker_installed
+    local cname=$(find_openlist_container_name)
+    if [ -z "$cname" ]; then
+        echo -e "${RED_COLOR}未找到 OpenList 容器${RES}"
+        return
+    fi
+    echo -e "${YELLOW_COLOR}提示：进入容器后，输入 exit 可返回本脚本交互界面，无需重新运行脚本。${RES}"
+    echo -e "${BLUE_COLOR}进入 OpenList 容器...${RES}"
+    docker exec -it "$cname" /bin/sh
+}
+
+# 在容器内设置管理员密码
+set_password_openlist_docker() {
+    check_docker_installed
+    local cname=$(find_openlist_container_name)
+    if [ -z "$cname" ]; then
+        echo -e "${RED_COLOR}未找到 OpenList 容器${RES}"
+        return
+    fi
+    read -r -p "请输入新的管理员密码: " new_password < /dev/tty
+    if [ -z "$new_password" ]; then
+        echo -e "${RED_COLOR}密码不能为空${RES}"
+        return
+    fi
+    docker exec "$cname" ./openlist admin set "$new_password"
+    echo -e "${GREEN_COLOR}已在容器内设置新密码${RES}"
+}
+
+# 重启容器
+restart_openlist_docker() {
+    check_docker_installed
+    local cname=$(find_openlist_container_name)
+    if [ -z "$cname" ]; then
+        echo -e "${RED_COLOR}未找到 OpenList 容器${RES}"
+        return
+    fi
+    docker restart "$cname"
+    echo -e "${GREEN_COLOR}OpenList 容器已重启${RES}"
+}
+
+# 查看容器状态
+status_openlist_docker() {
+    check_docker_installed
+    echo -e "${BLUE_COLOR}所有 OpenList 相关容器状态：${RES}"
+    local found=0
+    docker ps -a --format '状态: {{.Status}}  名称: {{.Names}}  镜像: {{.Image}}  端口: {{.Ports}}  创建时间: {{.CreatedAt}}' | \
+    grep -E 'ghcr.io/openlistteam/openlist-git:(beta|beta-ffmpeg|beta-aio|beta-aria2)' && found=1
+    if [ $found -eq 0 ]; then
+        echo -e "${YELLOW_COLOR}未找到任何 OpenList 官方镜像容器${RES}"
+    fi
+    read -r -p "按回车键返回菜单..." < /dev/tty
+}
+
+# 查看容器日志
+logs_openlist_docker() {
+    check_docker_installed
+    local cname=$(find_openlist_container_name)
+    if [ -z "$cname" ]; then
+        echo -e "${RED_COLOR}未找到 OpenList 容器${RES}"
+        read -r -p "按回车键返回菜单..." < /dev/tty
+        return
+    fi
+    echo -e "${BLUE_COLOR}显示 OpenList 容器最近20条日志：${RES}"
+    docker logs --tail 20 "$cname"
+    read -r -p "按回车键返回菜单..." < /dev/tty
+}
+
+# 检查 Docker 是否已安装
+is_docker_installed() {
+    if command -v docker >/dev/null 2>&1; then
+        echo -e "${GREEN_COLOR}Docker 已安装${RES}"
+        return 0
+    else
+        echo -e "${YELLOW_COLOR}Docker 未安装${RES}"
+        return 1
+    fi
+}
+
+# 检查 OpenList Docker 容器是否已安装
+is_openlist_docker_installed() {
+    local count=$(docker ps -a --format '{{.Image}}' 2>/dev/null | grep -E 'ghcr.io/openlistteam/openlist-git:(beta|beta-ffmpeg|beta-aio|beta-aria2)' | wc -l)
+    if [ "$count" -gt 0 ]; then
+        echo -e "${GREEN_COLOR}OpenList Docker 容器已安装${RES}"
+        return 0
+    else
+        echo -e "${YELLOW_COLOR}OpenList Docker 容器未安装${RES}"
+        return 1
+    fi
+}
+
 # 主菜单
 show_main_menu() {
     while true; do
@@ -1168,7 +1348,17 @@ show_main_menu() {
         echo "║                   Interactive Manager v${MANAGER_VERSION}                ║"
         echo "╚══════════════════════════════════════════════════════════════╝"
         echo -e "${RES}"
-        
+
+        # 推荐安装方式
+        echo -e "${BLUE_COLOR}推荐安装方式：${RES}"
+        echo -e "  1. ${GREEN_COLOR}二进制文件安装（适合大多数用户，兼容性好）${RES}"
+        echo -e "  2. ${GREEN_COLOR}Docker 安装（适合有 Docker 环境的用户，隔离性强）${RES}"
+        echo
+        # 显示 Docker 是否已安装
+        is_docker_installed
+        # 显示 OpenList Docker 容器是否已安装
+        is_openlist_docker_installed
+        echo
         # 显示状态
         if [ -f "$INSTALL_PATH/openlist" ]; then
             if systemctl is-active openlist >/dev/null 2>&1; then
@@ -1204,28 +1394,33 @@ show_main_menu() {
         echo -e "${GREEN_COLOR}8${RES}  - 查看状态"
         echo -e "${GREEN_COLOR}9${RES}  - 查看日志"
         echo
-        echo -e "${PURPLE_COLOR}═══ 高级操作 ═══${RES}"
-        echo -e "${GREEN_COLOR}10${RES} - 修改管理员密码"
+        echo -e "${PURPLE_COLOR}═══ Docker 管理 ═══${RES}"
+        echo -e "${GREEN_COLOR}11${RES} - Docker 一键安装/启动 OpenList"
+        echo -e "${GREEN_COLOR}12${RES} - 进入 OpenList 容器"
+        echo -e "${GREEN_COLOR}13${RES} - 容器内设置管理员密码"
+        echo -e "${GREEN_COLOR}14${RES} - 重启 OpenList 容器"
+        echo -e "${GREEN_COLOR}15${RES} - 查看容器状态"
+        echo -e "${GREEN_COLOR}16${RES} - 查看容器日志"
         echo
         echo -e "${GREEN_COLOR}0${RES}  - 退出脚本"
         echo
         
         # 强制从终端读取输入，以解决在特殊环境下（如通过管道或在某些 shell 中执行）的输入问题
-        read -p "请输入选项 [0-10]: " -r choice < /dev/tty
+        read -p "请输入选项 [0-16]: " -r choice < /dev/tty
         
         # 添加调试信息
         echo -e "${YELLOW_COLOR}[调试] 输入的选项: '$choice'${RES}"
         
         # 检查输入是否为空
         if [ -z "$choice" ]; then
-            echo -e "${RED_COLOR}请输入有效的选项 [0-10]${RES}"
+            echo -e "${RED_COLOR}请输入有效的选项 [0-16]${RES}"
             sleep 2
             continue
         fi
         
         # 检查输入是否为数字
         if ! [[ "$choice" =~ ^[0-9]+$ ]]; then
-            echo -e "${RED_COLOR}请输入数字选项 [0-10]${RES}"
+            echo -e "${RED_COLOR}请输入数字选项 [0-16]${RES}"
             sleep 2
             continue
         fi
@@ -1267,9 +1462,29 @@ show_main_menu() {
                 echo -e "${YELLOW_COLOR}[调试] 执行: show_logs${RES}"
                 show_logs
                 ;;
-            10)
-                echo -e "${YELLOW_COLOR}[调试] 执行: manage_password${RES}"
-                manage_password
+            11)
+                echo -e "${YELLOW_COLOR}[调试] 执行: install_openlist_docker${RES}"
+                install_openlist_docker
+                ;;
+            12)
+                echo -e "${YELLOW_COLOR}[调试] 执行: exec_openlist_docker${RES}"
+                exec_openlist_docker
+                ;;
+            13)
+                echo -e "${YELLOW_COLOR}[调试] 执行: set_password_openlist_docker${RES}"
+                set_password_openlist_docker
+                ;;
+            14)
+                echo -e "${YELLOW_COLOR}[调试] 执行: restart_openlist_docker${RES}"
+                restart_openlist_docker
+                ;;
+            15)
+                echo -e "${YELLOW_COLOR}[调试] 执行: status_openlist_docker${RES}"
+                status_openlist_docker
+                ;;
+            16)
+                echo -e "${YELLOW_COLOR}[调试] 执行: logs_openlist_docker${RES}"
+                logs_openlist_docker
                 ;;
             0) 
                 echo -e "${GREEN_COLOR}谢谢使用！${RES}"
