@@ -3,7 +3,7 @@
 #
 # OpenList Interactive Manager Script
 #
-# Version: 1.5.2
+# Version: 1.5.3
 # Last Updated: 2025-06-20
 #
 # Description: 
@@ -27,7 +27,7 @@
 GITHUB_REPO="OpenListTeam/OpenList"
 VERSION_TAG="beta"
 VERSION_FILE="/opt/openlist/.version"
-MANAGER_VERSION="1.5.2"  # 更新管理器版本号
+MANAGER_VERSION="1.5.3"  # 更新管理器版本号
 
 # 颜色配置
 RED_COLOR='\e[1;31m'
@@ -1554,17 +1554,6 @@ show_main_menu() {
     done
 }
 
-# 主程序入口
-main() {
-    show_welcome
-    check_system_requirements
-    check_disk_space
-    show_main_menu
-}
-
-# 执行主程序
-main "$@"
-
 # 定时自动更新相关函数
 CRON_MARK_BIN='# OpenList二进制自动更新'
 CRON_MARK_DOCKER='# OpenList Docker自动更新'
@@ -1679,3 +1668,15 @@ show_domain_bind_status() {
         echo -e "${GREEN_COLOR}域名绑定状态：已绑定域名：$domains${RES}"
     fi
 }
+
+# 主程序入口
+main() {
+    show_welcome
+    check_system_requirements
+    check_disk_space
+    show_main_menu
+}
+
+# 执行主程序
+main "$@"
+
