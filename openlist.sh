@@ -3,7 +3,7 @@
 #
 # OpenList Interactive Manager Script
 #
-# Version: 1.5.0
+# Version: 1.5.1
 # Last Updated: 2025-06-20
 #
 # Description: 
@@ -27,7 +27,7 @@
 GITHUB_REPO="OpenListTeam/OpenList"
 VERSION_TAG="beta"
 VERSION_FILE="/opt/openlist/.version"
-MANAGER_VERSION="1.5.0"  # 更新管理器版本号
+MANAGER_VERSION="1.5.1"  # 更新管理器版本号
 
 # 颜色配置
 RED_COLOR='\e[1;31m'
@@ -1489,35 +1489,12 @@ show_main_menu() {
         echo -e "  1. ${GREEN_COLOR}二进制文件服务模式（适合大多数用户，兼容性好）${RES}"
         echo -e "  2. ${GREEN_COLOR}Docker 安装（适合有 Docker 环境的用户，隔离性强）${RES}"
         echo
-        # 显示状态
-        if [ -f "$INSTALL_PATH/openlist" ]; then
-            if systemctl is-active openlist >/dev/null 2>&1; then
-                echo -e "${GREEN_COLOR}● OpenList 状态：运行中${RES}"
-            else
-                echo -e "${RED_COLOR}● OpenList 状态：已停止${RES}"
-            fi
-            
-            # 显示版本信息
-            if [ -f "$VERSION_FILE" ]; then
-                local version=$(head -n1 "$VERSION_FILE" 2>/dev/null)
-                local install_time=$(tail -n1 "$VERSION_FILE" 2>/dev/null)
-                echo -e "${BLUE_COLOR}● 当前版本：${RES}$version"
-                echo -e "${BLUE_COLOR}● 安装时间：${RES}$install_time"
-            else
-                echo -e "${YELLOW_COLOR}● 版本信息：未知${RES}"
-            fi
-        else
-            echo -e "${YELLOW_COLOR}● OpenList 状态：未安装${RES}"
-        fi
-        
-        echo
-        echo -e "${PURPLE_COLOR}═══ 基本操作 ═══${RES}"
+
+        echo -e "${PURPLE_COLOR}═══ 二进制文件服务模式 ═══${RES}"
         echo -e "${GREEN_COLOR}1${RES}  - 安装 OpenList"
         echo -e "${GREEN_COLOR}2${RES}  - 更新 OpenList"
         echo -e "${GREEN_COLOR}3${RES}  - 卸载 OpenList"
         echo -e "${GREEN_COLOR}4${RES}  - 迁移 Alist 数据到 OpenList"
-        echo
-        echo -e "${PURPLE_COLOR}═══ 服务管理 ═══${RES}"
         echo -e "${GREEN_COLOR}5${RES}  - 启动服务"
         echo -e "${GREEN_COLOR}6${RES}  - 停止服务"
         echo -e "${GREEN_COLOR}7${RES}  - 重启服务"
@@ -1525,118 +1502,53 @@ show_main_menu() {
         echo -e "${GREEN_COLOR}9${RES}  - 查看日志"
         echo
         echo -e "${PURPLE_COLOR}═══ Docker 管理 ═══${RES}"
-        echo -e "${GREEN_COLOR}11${RES} - Docker 一键安装/启动 OpenList"
-        echo -e "${GREEN_COLOR}12${RES} - 进入 OpenList 容器"
-        echo -e "${GREEN_COLOR}13${RES} - 容器内设置管理员密码"
-        echo -e "${GREEN_COLOR}14${RES} - 重启 OpenList 容器"
-        echo -e "${GREEN_COLOR}15${RES} - 查看容器状态"
-        echo -e "${GREEN_COLOR}16${RES} - 查看容器日志"
+        echo -e "${GREEN_COLOR}10${RES} - Docker 一键安装/启动 OpenList"
+        echo -e "${GREEN_COLOR}11${RES} - 进入 OpenList 容器"
+        echo -e "${GREEN_COLOR}12${RES} - 容器内设置管理员密码"
+        echo -e "${GREEN_COLOR}13${RES} - 重启 OpenList 容器"
+        echo -e "${GREEN_COLOR}14${RES} - 查看容器状态"
+        echo -e "${GREEN_COLOR}15${RES} - 查看容器日志"
         echo
         echo -e "${PURPLE_COLOR}═══ 域名绑定/反向代理 ═══${RES}"
-        echo -e "${GREEN_COLOR}21${RES} - 域名绑定/反代设置"
+        echo -e "${GREEN_COLOR}16${RES} - 域名绑定/反代设置"
+        echo
+        echo -e "${PURPLE_COLOR}═══ 定时自动更新 ═══${RES}"
+        echo -e "${GREEN_COLOR}17${RES} - 定时自动更新设置"
         echo
         echo -e "${GREEN_COLOR}0${RES}  - 退出脚本"
         echo
-        echo -e "${PURPLE_COLOR}═══ 定时自动更新 ═══${RES}"
-        echo -e "${GREEN_COLOR}22${RES} - 定时自动更新设置"
-        echo
-        
-        # 强制从终端读取输入，以解决在特殊环境下（如通过管道或在某些 shell 中执行）的输入问题
-        read -p "请输入选项 [0-16/21/22]: " -r choice < /dev/tty
-        
-        # 添加调试信息
+        read -p "请输入选项 [0-17]: " -r choice < /dev/tty
         echo -e "${YELLOW_COLOR}[调试] 输入的选项: '$choice'${RES}"
-        
-        # 检查输入是否为空
         if [ -z "$choice" ]; then
-            echo -e "${RED_COLOR}请输入有效的选项 [0-16/21/22]${RES}"
+            echo -e "${RED_COLOR}请输入有效的选项 [0-17]${RES}"
             sleep 2
             continue
         fi
-        
-        # 检查输入是否为数字
         if ! [[ "$choice" =~ ^[0-9]+$ ]]; then
-            echo -e "${RED_COLOR}请输入数字选项 [0-16/21/22]${RES}"
+            echo -e "${RED_COLOR}请输入数字选项 [0-17]${RES}"
             sleep 2
             continue
         fi
-        
         case "$choice" in
-            1) 
-                echo -e "${YELLOW_COLOR}[调试] 执行: install_openlist${RES}"
-                check_disk_space && install_openlist
-                ;;
-            2) 
-                echo -e "${YELLOW_COLOR}[调试] 执行: update_openlist${RES}"
-                check_disk_space && update_openlist
-                ;;
-            3) 
-                echo -e "${YELLOW_COLOR}[调试] 执行: uninstall_openlist${RES}"
-                uninstall_openlist
-                ;;
-            4) 
-                echo -e "${YELLOW_COLOR}[调试] 执行: migrate_alist_data${RES}"
-                check_disk_space && migrate_alist_data
-                ;;
-            5) 
-                echo -e "${YELLOW_COLOR}[调试] 执行: control_service start${RES}"
-                control_service start "启动"
-                ;;
-            6) 
-                echo -e "${YELLOW_COLOR}[调试] 执行: control_service stop${RES}"
-                control_service stop "停止"
-                ;;
-            7) 
-                echo -e "${YELLOW_COLOR}[调试] 执行: control_service restart${RES}"
-                control_service restart "重启"
-                ;;
-            8) 
-                echo -e "${YELLOW_COLOR}[调试] 执行: show_status${RES}"
-                show_status
-                ;;
-            9) 
-                echo -e "${YELLOW_COLOR}[调试] 执行: show_logs${RES}"
-                show_logs
-                ;;
-            11)
-                echo -e "${YELLOW_COLOR}[调试] 执行: install_openlist_docker${RES}"
-                install_openlist_docker
-                ;;
-            12)
-                echo -e "${YELLOW_COLOR}[调试] 执行: exec_openlist_docker${RES}"
-                exec_openlist_docker
-                ;;
-            13)
-                echo -e "${YELLOW_COLOR}[调试] 执行: set_password_openlist_docker${RES}"
-                set_password_openlist_docker
-                ;;
-            14)
-                echo -e "${YELLOW_COLOR}[调试] 执行: restart_openlist_docker${RES}"
-                restart_openlist_docker
-                ;;
-            15)
-                echo -e "${YELLOW_COLOR}[调试] 执行: status_openlist_docker${RES}"
-                status_openlist_docker
-                ;;
-            16)
-                echo -e "${YELLOW_COLOR}[调试] 执行: logs_openlist_docker${RES}"
-                logs_openlist_docker
-                ;;
-            21)
-                show_domain_proxy_menu
-                ;;
-            22)
-                show_auto_update_menu
-                ;;
-            0) 
-                echo -e "${GREEN_COLOR}谢谢使用！${RES}"
-                exit 0
-                ;;
-            *) 
-                echo -e "${RED_COLOR}无效选项，请重新选择${RES}"
-                echo -e "${YELLOW_COLOR}[调试] 无效选项: '$choice'${RES}"
-                sleep 2
-                ;;
+            1) check_disk_space && install_openlist ;;
+            2) check_disk_space && update_openlist ;;
+            3) uninstall_openlist ;;
+            4) check_disk_space && migrate_alist_data ;;
+            5) control_service start "启动" ;;
+            6) control_service stop "停止" ;;
+            7) control_service restart "重启" ;;
+            8) show_status ;;
+            9) show_logs ;;
+            10) install_openlist_docker ;;
+            11) exec_openlist_docker ;;
+            12) set_password_openlist_docker ;;
+            13) restart_openlist_docker ;;
+            14) status_openlist_docker ;;
+            15) logs_openlist_docker ;;
+            16) show_domain_proxy_menu ;;
+            17) show_auto_update_menu ;;
+            0) echo -e "${GREEN_COLOR}谢谢使用！${RES}"; exit 0 ;;
+            *) echo -e "${RED_COLOR}无效选项，请重新选择${RES}"; echo -e "${YELLOW_COLOR}[调试] 无效选项: '$choice'${RES}"; sleep 2 ;;
         esac
     done
 }
