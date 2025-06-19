@@ -3,7 +3,7 @@
 #
 # OpenList Interactive Manager Script
 #
-# Version: 1.5.1
+# Version: 1.5.2
 # Last Updated: 2025-06-20
 #
 # Description: 
@@ -27,7 +27,7 @@
 GITHUB_REPO="OpenListTeam/OpenList"
 VERSION_TAG="beta"
 VERSION_FILE="/opt/openlist/.version"
-MANAGER_VERSION="1.5.1"  # 更新管理器版本号
+MANAGER_VERSION="1.5.2"  # 更新管理器版本号
 
 # 颜色配置
 RED_COLOR='\e[1;31m'
@@ -1483,6 +1483,7 @@ show_main_menu() {
         is_docker_installed
         is_openlist_docker_installed
         is_nginx_installed
+        show_domain_bind_status
         echo
         # 推荐安装方式
         echo -e "${BLUE_COLOR}推荐安装方式：${RES}"
@@ -1661,4 +1662,20 @@ show_auto_update_menu() {
                 ;;
         esac
     done
+}
+
+show_domain_bind_status() {
+    local conf_dir="/etc/nginx/conf.d"
+    local domain_files=$(ls $conf_dir/openlist_*.conf 2>/dev/null)
+    if [ -z "$domain_files" ]; then
+        echo -e "${YELLOW_COLOR}域名绑定状态：未绑定域名${RES}"
+    else
+        local domains=""
+        for f in $domain_files; do
+            local d=$(grep -Eo 'server_name[ ]+[^;]+' "$f" | awk '{print $2}')
+            [ -n "$d" ] && domains+="$d, "
+        done
+        domains=${domains%, }
+        echo -e "${GREEN_COLOR}域名绑定状态：已绑定域名：$domains${RES}"
+    fi
 }
