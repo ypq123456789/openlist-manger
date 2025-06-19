@@ -3,7 +3,7 @@
 #
 # OpenList Interactive Manager Script
 #
-# Version: 1.4.6
+# Version: 1.4.7
 # Last Updated: 2025-06-19
 #
 # Description: 
@@ -27,7 +27,7 @@
 GITHUB_REPO="OpenListTeam/OpenList"
 VERSION_TAG="beta"
 VERSION_FILE="/opt/openlist/.version"
-MANAGER_VERSION="1.4.6"  # 更新管理器版本号
+MANAGER_VERSION="1.4.7"  # 更新管理器版本号
 
 # 颜色配置
 RED_COLOR='\e[1;31m'
@@ -1314,6 +1314,29 @@ logs_openlist_docker() {
     read -r -p "按回车键返回菜单..." < /dev/tty
 }
 
+# 检查 Docker 是否已安装
+is_docker_installed() {
+    if command -v docker >/dev/null 2>&1; then
+        echo -e "${GREEN_COLOR}Docker 已安装${RES}"
+        return 0
+    else
+        echo -e "${YELLOW_COLOR}Docker 未安装${RES}"
+        return 1
+    fi
+}
+
+# 检查 OpenList Docker 容器是否已安装
+is_openlist_docker_installed() {
+    local count=$(docker ps -a --format '{{.Image}}' 2>/dev/null | grep -E 'ghcr.io/openlistteam/openlist-git:(beta|beta-ffmpeg|beta-aio|beta-aria2)' | wc -l)
+    if [ "$count" -gt 0 ]; then
+        echo -e "${GREEN_COLOR}OpenList Docker 容器已安装${RES}"
+        return 0
+    else
+        echo -e "${YELLOW_COLOR}OpenList Docker 容器未安装${RES}"
+        return 1
+    fi
+}
+
 # 主菜单
 show_main_menu() {
     while true; do
@@ -1325,7 +1348,17 @@ show_main_menu() {
         echo "║                   Interactive Manager v${MANAGER_VERSION}                ║"
         echo "╚══════════════════════════════════════════════════════════════╝"
         echo -e "${RES}"
-        
+
+        # 推荐安装方式
+        echo -e "${BLUE_COLOR}推荐安装方式：${RES}"
+        echo -e "  1. ${GREEN_COLOR}二进制文件安装（适合大多数用户，兼容性好）${RES}"
+        echo -e "  2. ${GREEN_COLOR}Docker 安装（适合有 Docker 环境的用户，隔离性强）${RES}"
+        echo
+        # 显示 Docker 是否已安装
+        is_docker_installed
+        # 显示 OpenList Docker 容器是否已安装
+        is_openlist_docker_installed
+        echo
         # 显示状态
         if [ -f "$INSTALL_PATH/openlist" ]; then
             if systemctl is-active openlist >/dev/null 2>&1; then
