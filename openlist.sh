@@ -3,7 +3,7 @@
 #
 # OpenList Interactive Manager Script
 #
-# Version: 1.4.5
+# Version: 1.4.6
 # Last Updated: 2025-06-19
 #
 # Description: 
@@ -27,7 +27,7 @@
 GITHUB_REPO="OpenListTeam/OpenList"
 VERSION_TAG="beta"
 VERSION_FILE="/opt/openlist/.version"
-MANAGER_VERSION="1.4.5"  # 更新管理器版本号
+MANAGER_VERSION="1.4.6"  # 更新管理器版本号
 
 # 颜色配置
 RED_COLOR='\e[1;31m'
@@ -1309,8 +1309,8 @@ logs_openlist_docker() {
         read -r -p "按回车键返回菜单..." < /dev/tty
         return
     fi
-    echo -e "${BLUE_COLOR}显示 OpenList 容器日志（↑↓翻页，q退出，回车返回菜单）...${RES}"
-    docker logs --tail 200 "$cname" | less
+    echo -e "${BLUE_COLOR}显示 OpenList 容器最近20条日志：${RES}"
+    docker logs --tail 20 "$cname"
     read -r -p "按回车键返回菜单..." < /dev/tty
 }
 
