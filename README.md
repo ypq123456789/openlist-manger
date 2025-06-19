@@ -39,23 +39,19 @@
 
 ## 使用方法
 
-1.  **下载脚本**
+### 推荐：一键运行脚本（无需下载，适合快速体验/云主机/临时环境）
 
-    ```bash
-    curl -fsSL "https://raw.githubusercontent.com/ypq123456789/openlist/refs/heads/main/openlist.sh" -o openlist.sh
-    ```
+```bash
+curl -fsSL "https://raw.githubusercontent.com/ypq123456789/openlist/refs/heads/main/openlist.sh" | sudo bash
+```
 
-2.  **授予执行权限**
+### 可选：本地下载后运行（适合需自定义或长期维护的用户）
 
-    ```bash
-    chmod +x openlist.sh
-    ```
-
-3.  **运行脚本**
-
-    ```bash
-    sudo ./openlist.sh
-    ```
+```bash
+curl -fsSL "https://raw.githubusercontent.com/ypq123456789/openlist/refs/heads/main/openlist.sh" -o openlist.sh
+chmod +x openlist.sh
+sudo ./openlist.sh
+```
 
 ## 脚本菜单详解
 
