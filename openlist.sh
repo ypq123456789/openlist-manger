@@ -3,8 +3,8 @@
 #
 # OpenList Interactive Manager Script
 #
-# Version: 1.3.3
-# Last Updated: 2025-06-15
+# Version: 1.4.5
+# Last Updated: 2025-06-19
 #
 # Description: 
 #   An interactive management script for OpenList
