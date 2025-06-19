@@ -144,13 +144,55 @@ check_system_requirements() {
 
 # 检查 Docker 是否安装
 check_docker_installed() {
-    if ! command -v docker >/dev/null 2>&1; then
-        echo -e "${RED_COLOR}错误：请先安装 Docker 服务。${RES}"
-        echo -e "${YELLOW_COLOR}您可以访问 https://www.docker.com/get-started 进行安装。${RES}"
-        read -r -p "按回车键继续..." < /dev/tty
-        return 1
+    if command -v docker >/dev/null 2>&1; then
+        echo -e "${GREEN_COLOR}Docker 已安装。${RES}"
+        return 0
+    else
+        echo -e "${YELLOW_COLOR}未检测到 Docker 服务。${RES}"
+        read -r -p "是否尝试使用官方脚本安装 Docker？(y/N): " install_docker_choice < /dev/tty
+        install_docker_choice=$(echo "$install_docker_choice" | tr '[:upper:]' '[:lower:]')
+
+        if [ "$install_docker_choice" == "y" ]; then
+            echo -e "${BLUE_COLOR}正在尝试下载并执行 Docker 官方安装脚本...${RES}"
+            # Ensure get-docker.sh is removed afterwards, regardless of success of sh
+            if curl -fsSL https://get.docker.com -o get-docker.sh; then
+                if sudo sh get-docker.sh; then
+                    echo -e "${GREEN_COLOR}Docker 安装脚本执行完成。请检查是否有错误信息。${RES}"
+                    rm get-docker.sh
+                    echo -e "${YELLOW_COLOR}建议重新运行本脚本或打开新的终端会话以确保 Docker 环境完全生效。${RES}"
+                    # Re-check for Docker
+                    if command -v docker >/dev/null 2>&1; then
+                        echo -e "${GREEN_COLOR}Docker 安装成功并已检测到！${RES}"
+                        # Adding a small pause for the user to read the message
+                        sleep 2
+                        return 0
+                    else
+                        echo -e "${RED_COLOR}Docker 安装脚本已执行，但仍未检测到 Docker 命令。可能需要手动检查或重启终端。${RES}"
+                        read -r -p "按回车键继续..." < /dev/tty
+                        return 1
+                    fi
+                else
+                    echo -e "${RED_COLOR}Docker 安装脚本执行失败。请尝试手动安装。${RES}"
+                    rm get-docker.sh # Remove script even if sh fails
+                    read -r -p "按回车键继续..." < /dev/tty
+                    return 1
+                fi
+            else
+                echo -e "${RED_COLOR}Docker 安装脚本下载失败。请尝试手动安装。${RES}"
+                # If get-docker.sh was somehow created despite download failure, remove it.
+                if [ -f "get-docker.sh" ]; then
+                    rm get-docker.sh
+                fi
+                read -r -p "按回车键继续..." < /dev/tty
+                return 1
+            fi
+        else
+            echo -e "${YELLOW_COLOR}已跳过 Docker 安装。部分功能可能无法使用。${RES}"
+            echo -e "${YELLOW_COLOR}您可以访问 https://www.docker.com/get-started 手动进行安装。${RES}"
+            read -r -p "按回车键继续..." < /dev/tty
+            return 1
+        fi
     fi
-    return 0
 }
 
 # 显示欢迎信息
@@ -1052,7 +1094,7 @@ docker_install_openlist() {
             echo -e "${BLUE_COLOR}正在拉取并运行 OpenList Docker 镜像...${RES}"
             local docker_command="docker run -d --name openlist -p 5244:5244 --restart unless-stopped ghcr.io/openlistteam/openlist-git:main"
             echo -e "执行命令: ${PURPLE_COLOR}$docker_command${RES}"
-
+            
             if $docker_command; then
                 echo -e "${GREEN_COLOR}OpenList Docker 容器已成功启动！${RES}"
                 echo -e "${BLUE_COLOR}默认账号：${RES}admin"
@@ -1514,7 +1556,7 @@ show_main_menu() {
                 else
                     echo -e "${BLUE_COLOR}● OpenList Docker 状态：$docker_status${RES}"
                 fi
-
+                
                 local docker_image
                 docker_image=$(docker inspect openlist --format "{{.Config.Image}}" 2>/dev/null)
                 if [ -n "$docker_image" ]; then
