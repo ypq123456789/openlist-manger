@@ -3,8 +3,8 @@
 #
 # OpenList Interactive Manager Script
 #
-# Version: 1.4.7
-# Last Updated: 2025-06-19
+# Version: 1.5.0
+# Last Updated: 2025-06-20
 #
 # Description: 
 #   An interactive management script for OpenList
@@ -27,7 +27,7 @@
 GITHUB_REPO="OpenListTeam/OpenList"
 VERSION_TAG="beta"
 VERSION_FILE="/opt/openlist/.version"
-MANAGER_VERSION="1.4.7"  # 更新管理器版本号
+MANAGER_VERSION="1.5.0"  # 更新管理器版本号
 
 # 颜色配置
 RED_COLOR='\e[1;31m'
@@ -1337,6 +1337,134 @@ is_openlist_docker_installed() {
     fi
 }
 
+# 检查 OpenList 二进制文件是否已下载
+is_openlist_binary_downloaded() {
+    if [ -f "$INSTALL_PATH/openlist" ]; then
+        echo -e "${GREEN_COLOR}OpenList 二进制文件已下载${RES}"
+        return 0
+    else
+        echo -e "${YELLOW_COLOR}OpenList 二进制文件未下载${RES}"
+        return 1
+    fi
+}
+
+# 检查 OpenList 服务是否正在运行
+is_openlist_service_running() {
+    if systemctl is-active openlist >/dev/null 2>&1; then
+        echo -e "${GREEN_COLOR}OpenList 服务正在运行${RES}"
+        return 0
+    else
+        echo -e "${YELLOW_COLOR}OpenList 服务未运行${RES}"
+        return 1
+    fi
+}
+
+# 检查 Nginx 是否已安装
+is_nginx_installed() {
+    if command -v nginx >/dev/null 2>&1; then
+        echo -e "${GREEN_COLOR}Nginx 已安装${RES}"
+        return 0
+    else
+        echo -e "${YELLOW_COLOR}Nginx 未安装${RES}"
+        return 1
+    fi
+}
+
+# 获取本机公网IP
+get_local_ip() {
+    curl -s https://api.ipify.org || hostname -I | awk '{print $1}'
+}
+
+# 一键安装 Nginx
+nginx_check_and_install() {
+    if command -v nginx >/dev/null 2>&1; then
+        echo -e "${GREEN_COLOR}Nginx 已安装${RES}"
+        return 0
+    fi
+    echo -e "${YELLOW_COLOR}Nginx 未安装，是否一键安装？${RES}"
+    read -r -p "安装 Nginx？[Y/n]: " confirm < /dev/tty
+    case "${confirm:-y}" in
+        [yY]|"")
+            if [ -f /etc/os-release ]; then
+                . /etc/os-release
+                if [[ $ID == "ubuntu" || $ID == "debian" ]]; then
+                    apt update && apt install -y nginx || handle_error 1 "Nginx 安装失败"
+                elif [[ $ID == "centos" || $ID == "rhel" ]]; then
+                    yum install -y nginx || handle_error 1 "Nginx 安装失败"
+                else
+                    echo -e "${RED_COLOR}不支持的系统，请手动安装 Nginx${RES}"
+                    return 1
+                fi
+            fi
+            systemctl enable nginx && systemctl start nginx
+            echo -e "${GREEN_COLOR}Nginx 安装完成${RES}"
+            ;;
+        *)
+            echo -e "${YELLOW_COLOR}已取消安装 Nginx${RES}"
+            return 1
+            ;;
+    esac
+}
+
+# 配置 Nginx 反向代理
+setup_nginx_proxy() {
+    nginx_check_and_install || return
+    read -r -p "请输入要绑定的域名: " domain < /dev/tty
+    if [ -z "$domain" ]; then
+        echo -e "${RED_COLOR}域名不能为空${RES}"
+        return
+    fi
+    # 生成 Nginx 配置
+    local conf_path="/etc/nginx/conf.d/openlist_${domain}.conf"
+    cat > "$conf_path" <<EOF
+server {
+    listen 80;
+    server_name $domain;
+    location / {
+        proxy_pass http://127.0.0.1:5244;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+}
+EOF
+    nginx -t && systemctl reload nginx
+    echo -e "${GREEN_COLOR}Nginx 反向代理配置已生成并重载${RES}"
+    local ip=$(get_local_ip)
+    echo -e "${YELLOW_COLOR}请在域名服务商处将 $domain 的A记录指向本机IP: $ip${RES}"
+    echo -e "配置完成后可通过 http://$domain 访问 OpenList"
+    read -r -p "按回车键返回菜单..." < /dev/tty
+}
+
+# 域名绑定/反代菜单
+show_domain_proxy_menu() {
+    while true; do
+        clear
+        echo -e "${CYAN_COLOR}"
+        echo "╔══════════════════════════════════════════════════════════════╗"
+        echo "║                域名绑定与 Nginx 反向代理设置                 ║"
+        echo "╚══════════════════════════════════════════════════════════════╝"
+        echo -e "${RES}"
+        echo -e "${GREEN_COLOR}1${RES} - 一键配置域名反向代理"
+        echo -e "${GREEN_COLOR}0${RES} - 返回主菜单"
+        echo
+        read -r -p "请输入选项 [0-1]: " choice < /dev/tty
+        case "$choice" in
+            1)
+                setup_nginx_proxy
+                ;;
+            0)
+                return
+                ;;
+            *)
+                echo -e "${RED_COLOR}无效选项，请重新选择${RES}"
+                sleep 1
+                ;;
+        esac
+    done
+}
+
 # 主菜单
 show_main_menu() {
     while true; do
@@ -1349,15 +1477,17 @@ show_main_menu() {
         echo "╚══════════════════════════════════════════════════════════════╝"
         echo -e "${RES}"
 
+        # 关键组件状态
+        is_openlist_binary_downloaded
+        is_openlist_service_running
+        is_docker_installed
+        is_openlist_docker_installed
+        is_nginx_installed
+        echo
         # 推荐安装方式
         echo -e "${BLUE_COLOR}推荐安装方式：${RES}"
-        echo -e "  1. ${GREEN_COLOR}二进制文件安装（适合大多数用户，兼容性好）${RES}"
+        echo -e "  1. ${GREEN_COLOR}二进制文件服务模式（适合大多数用户，兼容性好）${RES}"
         echo -e "  2. ${GREEN_COLOR}Docker 安装（适合有 Docker 环境的用户，隔离性强）${RES}"
-        echo
-        # 显示 Docker 是否已安装
-        is_docker_installed
-        # 显示 OpenList Docker 容器是否已安装
-        is_openlist_docker_installed
         echo
         # 显示状态
         if [ -f "$INSTALL_PATH/openlist" ]; then
@@ -1402,25 +1532,31 @@ show_main_menu() {
         echo -e "${GREEN_COLOR}15${RES} - 查看容器状态"
         echo -e "${GREEN_COLOR}16${RES} - 查看容器日志"
         echo
+        echo -e "${PURPLE_COLOR}═══ 域名绑定/反向代理 ═══${RES}"
+        echo -e "${GREEN_COLOR}21${RES} - 域名绑定/反代设置"
+        echo
         echo -e "${GREEN_COLOR}0${RES}  - 退出脚本"
+        echo
+        echo -e "${PURPLE_COLOR}═══ 定时自动更新 ═══${RES}"
+        echo -e "${GREEN_COLOR}22${RES} - 定时自动更新设置"
         echo
         
         # 强制从终端读取输入，以解决在特殊环境下（如通过管道或在某些 shell 中执行）的输入问题
-        read -p "请输入选项 [0-16]: " -r choice < /dev/tty
+        read -p "请输入选项 [0-16/21/22]: " -r choice < /dev/tty
         
         # 添加调试信息
         echo -e "${YELLOW_COLOR}[调试] 输入的选项: '$choice'${RES}"
         
         # 检查输入是否为空
         if [ -z "$choice" ]; then
-            echo -e "${RED_COLOR}请输入有效的选项 [0-16]${RES}"
+            echo -e "${RED_COLOR}请输入有效的选项 [0-16/21/22]${RES}"
             sleep 2
             continue
         fi
         
         # 检查输入是否为数字
         if ! [[ "$choice" =~ ^[0-9]+$ ]]; then
-            echo -e "${RED_COLOR}请输入数字选项 [0-16]${RES}"
+            echo -e "${RED_COLOR}请输入数字选项 [0-16/21/22]${RES}"
             sleep 2
             continue
         fi
@@ -1486,6 +1622,12 @@ show_main_menu() {
                 echo -e "${YELLOW_COLOR}[调试] 执行: logs_openlist_docker${RES}"
                 logs_openlist_docker
                 ;;
+            21)
+                show_domain_proxy_menu
+                ;;
+            22)
+                show_auto_update_menu
+                ;;
             0) 
                 echo -e "${GREEN_COLOR}谢谢使用！${RES}"
                 exit 0
@@ -1509,3 +1651,102 @@ main() {
 
 # 执行主程序
 main "$@"
+
+# 定时自动更新相关函数
+CRON_MARK_BIN='# OpenList二进制自动更新'
+CRON_MARK_DOCKER='# OpenList Docker自动更新'
+
+setup_cron_update() {
+    local mode=$1
+    local schedule=$2
+    local cmd
+    if [ "$mode" = "bin" ]; then
+        cmd="curl -fsSL \"https://raw.githubusercontent.com/ypq123456789/openlist/refs/heads/main/openlist.sh\" | sudo bash -s update"
+        mark="$CRON_MARK_BIN"
+    else
+        cmd="curl -fsSL \"https://raw.githubusercontent.com/ypq123456789/openlist/refs/heads/main/openlist.sh\" | sudo bash -s docker_update"
+        mark="$CRON_MARK_DOCKER"
+    fi
+    (crontab -l 2>/dev/null | grep -v "$mark"; echo "$schedule $cmd $mark") | crontab -
+    echo -e "${GREEN_COLOR}定时自动更新任务已设置：$schedule${RES}"
+}
+
+remove_cron_update() {
+    local mark=$1
+    crontab -l 2>/dev/null | grep -v "$mark" | crontab -
+    echo -e "${YELLOW_COLOR}已取消对应的定时自动更新任务${RES}"
+}
+
+show_cron_update_status() {
+    echo -e "${BLUE_COLOR}当前定时自动更新任务：${RES}"
+    crontab -l 2>/dev/null | grep -E "$CRON_MARK_BIN|$CRON_MARK_DOCKER" && return
+    echo -e "${YELLOW_COLOR}未设置任何自动更新任务${RES}"
+}
+
+show_auto_update_menu() {
+    while true; do
+        clear
+        echo -e "${CYAN_COLOR}"
+        echo "╔══════════════════════════════════════════════════════════════╗"
+        echo "║                  定时自动更新设置                            ║"
+        echo "╚══════════════════════════════════════════════════════════════╝"
+        echo -e "${RES}"
+        echo -e "${BLUE_COLOR}请选择自动更新模式：${RES}"
+        echo -e "${GREEN_COLOR}1${RES} - 二进制文件服务模式自动更新"
+        echo -e "${GREEN_COLOR}2${RES} - Docker 模式自动更新"
+        echo -e "${GREEN_COLOR}3${RES} - 查看当前定时任务"
+        echo -e "${GREEN_COLOR}4${RES} - 取消二进制自动更新"
+        echo -e "${GREEN_COLOR}5${RES} - 取消 Docker 自动更新"
+        echo -e "${GREEN_COLOR}0${RES} - 返回主菜单"
+        echo
+        read -r -p "请输入选项 [0-5]: " choice < /dev/tty
+        case "$choice" in
+            1|2)
+                local mode="bin"
+                [ "$choice" = "2" ] && mode="docker"
+                echo -e "${BLUE_COLOR}请选择更新频率：${RES}"
+                echo -e "${GREEN_COLOR}1${RES} - 每小时更新"
+                echo -e "${GREEN_COLOR}2${RES} - 每3小时更新"
+                echo -e "${GREEN_COLOR}3${RES} - 每天更新"
+                echo -e "${GREEN_COLOR}4${RES} - 每周更新"
+                echo -e "${GREEN_COLOR}5${RES} - 自定义 crontab 表达式"
+                read -r -p "请选择 [1-5]: " freq < /dev/tty
+                local schedule
+                case "$freq" in
+                    1) schedule="0 * * * *";;
+                    2) schedule="0 */3 * * *";;
+                    3) schedule="0 3 * * *";;
+                    4) schedule="0 3 * * 0";;
+                    5)
+                        read -r -p "请输入自定义 crontab 时间表达式: " schedule < /dev/tty
+                        ;;
+                    *)
+                        echo -e "${RED_COLOR}无效选项${RES}"
+                        continue
+                        ;;
+                esac
+                setup_cron_update "$mode" "$schedule"
+                read -r -p "按回车键返回菜单..." < /dev/tty
+                ;;
+            3)
+                show_cron_update_status
+                read -r -p "按回车键返回菜单..." < /dev/tty
+                ;;
+            4)
+                remove_cron_update "$CRON_MARK_BIN"
+                read -r -p "按回车键返回菜单..." < /dev/tty
+                ;;
+            5)
+                remove_cron_update "$CRON_MARK_DOCKER"
+                read -r -p "按回车键返回菜单..." < /dev/tty
+                ;;
+            0)
+                return
+                ;;
+            *)
+                echo -e "${RED_COLOR}无效选项${RES}"
+                sleep 1
+                ;;
+        esac
+    done
+}
