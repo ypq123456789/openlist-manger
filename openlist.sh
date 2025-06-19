@@ -27,7 +27,7 @@
 GITHUB_REPO="OpenListTeam/OpenList"
 VERSION_TAG="beta"
 VERSION_FILE="/opt/openlist/.version"
-MANAGER_VERSION="1.4.3"  # 更新管理器版本号
+MANAGER_VERSION="1.4.4"  # 更新管理器版本号
 
 # 颜色配置
 RED_COLOR='\e[1;31m'
@@ -1290,12 +1290,14 @@ restart_openlist_docker() {
 # 查看容器状态
 status_openlist_docker() {
     check_docker_installed
-    local cname=$(find_openlist_container_name)
-    if [ -z "$cname" ]; then
-        echo -e "${RED_COLOR}未找到 OpenList 容器${RES}"
-        return
+    echo -e "${BLUE_COLOR}所有 OpenList 相关容器状态：${RES}"
+    local found=0
+    docker ps -a --format '状态: {{.Status}}  名称: {{.Names}}  镜像: {{.Image}}  端口: {{.Ports}}  创建时间: {{.CreatedAt}}' | \
+    grep -E 'ghcr.io/openlistteam/openlist-git:(beta|beta-ffmpeg|beta-aio|beta-aria2)' && found=1
+    if [ $found -eq 0 ]; then
+        echo -e "${YELLOW_COLOR}未找到任何 OpenList 官方镜像容器${RES}"
     fi
-    docker ps -a --filter "name=$cname" --format '状态: {{.Status}}  名称: {{.Names}}  镜像: {{.Image}}'
+    read -r -p "按回车键返回菜单..." < /dev/tty
 }
 
 # 查看容器日志
@@ -1304,10 +1306,12 @@ logs_openlist_docker() {
     local cname=$(find_openlist_container_name)
     if [ -z "$cname" ]; then
         echo -e "${RED_COLOR}未找到 OpenList 容器${RES}"
+        read -r -p "按回车键返回菜单..." < /dev/tty
         return
     fi
-    echo -e "${BLUE_COLOR}显示 OpenList 容器日志（Ctrl+C 退出）...${RES}"
+    echo -e "${BLUE_COLOR}显示 OpenList 容器日志（Ctrl+C 停止日志查看，返回菜单）...${RES}"
     docker logs -f "$cname"
+    read -r -p "按回车键返回菜单..." < /dev/tty
 }
 
 # 主菜单
