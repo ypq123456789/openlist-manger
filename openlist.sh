@@ -142,6 +142,17 @@ check_system_requirements() {
     sleep 1
 }
 
+# 检查 Docker 是否安装
+check_docker_installed() {
+    if ! command -v docker >/dev/null 2>&1; then
+        echo -e "${RED_COLOR}错误：请先安装 Docker 服务。${RES}"
+        echo -e "${YELLOW_COLOR}您可以访问 https://www.docker.com/get-started 进行安装。${RES}"
+        read -r -p "按回车键继续..." < /dev/tty
+        return 1
+    fi
+    return 0
+}
+
 # 显示欢迎信息
 show_welcome() {
     clear
@@ -760,6 +771,305 @@ show_status() {
     read -r -p "按回车键继续..." < /dev/tty
 }
 
+# 检查 OpenList Docker 容器是否存在
+check_openlist_container_exists() {
+    if docker ps -a --format '{{.Names}}' | grep -q "^openlist$"; then
+        return 0 # Exists
+    else
+        return 1 # Does not exist
+    fi
+}
+
+# 设置 Docker OpenList 管理员密码
+docker_set_password() {
+    echo -e "${CYAN_COLOR}设置 Docker OpenList 管理员密码${RES}"
+    if ! check_openlist_container_exists; then
+        echo -e "${RED_COLOR}OpenList Docker 容器 'openlist' 未找到或未运行。${RES}"
+        read -r -p "按回车键继续..." < /dev/tty
+        return
+    fi
+
+    echo -e "${YELLOW_COLOR}请输入新的管理员密码（输入内容不会显示）：${RES}"
+    read -r -s -p "新密码: " new_password < /dev/tty
+    echo
+    if [ -z "$new_password" ]; then
+        echo -e "${RED_COLOR}密码不能为空。${RES}"
+        read -r -p "按回车键继续..." < /dev/tty
+        return
+    fi
+    read -r -s -p "确认密码: " confirm_password < /dev/tty
+    echo
+    if [ "$new_password" != "$confirm_password" ]; then
+        echo -e "${RED_COLOR}两次输入的密码不匹配。${RES}"
+        read -r -p "按回车键继续..." < /dev/tty
+        return
+    fi
+
+    echo -e "${BLUE_COLOR}正在设置密码...${RES}"
+    if docker exec -it openlist ./openlist admin set "$new_password"; then
+        echo -e "${GREEN_COLOR}管理员密码已成功设置为 '$new_password'。${RES}"
+    else
+        echo -e "${RED_COLOR}设置管理员密码失败。请检查容器日志。${RES}"
+    fi
+    read -r -p "按回车键继续..." < /dev/tty
+}
+
+# 重启 Docker OpenList 容器
+docker_restart_container() {
+    echo -e "${CYAN_COLOR}重启 Docker OpenList 容器${RES}"
+    if ! check_openlist_container_exists; then
+        echo -e "${RED_COLOR}OpenList Docker 容器 'openlist' 未找到。${RES}"
+        read -r -p "按回车键继续..." < /dev/tty
+        return
+    fi
+
+    echo -e "${BLUE_COLOR}正在重启容器 'openlist'...${RES}"
+    if docker restart openlist; then
+        echo -e "${GREEN_COLOR}容器 'openlist' 重启成功。${RES}"
+    else
+        echo -e "${RED_COLOR}容器 'openlist' 重启失败。${RES}"
+    fi
+    read -r -p "按回车键继续..." < /dev/tty
+}
+
+# 查看 Docker OpenList 容器状态
+docker_view_status() {
+    echo -e "${CYAN_COLOR}查看 Docker OpenList 容器状态${RES}"
+    if ! check_openlist_container_exists; then
+        echo -e "${RED_COLOR}OpenList Docker 容器 'openlist' 未找到。${RES}"
+        read -r -p "按回车键继续..." < /dev/tty
+        return
+    fi
+    echo -e "${BLUE_COLOR}容器 'openlist' 的状态:${RES}"
+    docker ps -a --filter name=openlist
+    read -r -p "按回车键继续..." < /dev/tty
+}
+
+# 查看 Docker OpenList 容器日志
+docker_view_logs() {
+    echo -e "${CYAN_COLOR}查看 Docker OpenList 容器日志${RES}"
+    if ! check_openlist_container_exists; then
+        echo -e "${RED_COLOR}OpenList Docker 容器 'openlist' 未找到。${RES}"
+        read -r -p "按回车键继续..." < /dev/tty
+        return
+    fi
+
+    echo -e "${BLUE_COLOR}日志查看选项：${RES}"
+    echo -e "${GREEN_COLOR}1${RES} - 查看最近 100 条日志"
+    echo -e "${GREEN_COLOR}2${RES} - 实时查看日志 (Ctrl+C 退出)"
+    echo -e "${GREEN_COLOR}3${RES} - 返回"
+    echo
+    read -r -p "请选择 [1-3]: " log_choice < /dev/tty
+
+    case "$log_choice" in
+        1)
+            echo -e "${BLUE_COLOR}最近 100 条日志：${RES}"
+            docker logs --tail 100 openlist
+            read -r -p "按回车键继续..." < /dev/tty
+            ;;
+        2)
+            echo -e "${BLUE_COLOR}实时日志（按 Ctrl+C 退出）：${RES}"
+            docker logs -f openlist
+            # No "press enter to continue" here as user exits with Ctrl+C
+            ;;
+        3)
+            return
+            ;;
+        *)
+            echo -e "${RED_COLOR}无效选项${RES}"
+            read -r -p "按回车键继续..." < /dev/tty
+            ;;
+    esac
+}
+
+# 查看 Docker OpenList 初始密码
+docker_view_initial_password() {
+    echo -e "${CYAN_COLOR}查看 Docker OpenList 初始密码${RES}"
+    if ! check_openlist_container_exists; then
+        echo -e "${RED_COLOR}OpenList Docker 容器 'openlist' 未找到。${RES}"
+        read -r -p "按回车键继续..." < /dev/tty
+        return
+    fi
+
+    echo -e "${BLUE_COLOR}正在从日志中查找初始密码...${RES}"
+    local password
+    password=$(docker logs openlist 2>&1 | grep -i "initial password is:" | tail -1 | sed 's/.*initial password is: //')
+
+    if [ -n "$password" ]; then
+        echo -e "${GREEN_COLOR}找到初始密码: $password${RES}"
+    else
+        echo -e "${YELLOW_COLOR}未在日志中找到初始密码。可能已被修改或日志已滚动。${RES}"
+    fi
+    read -r -p "按回车键继续..." < /dev/tty
+}
+
+# 停止 Docker OpenList 容器
+docker_stop_container() {
+    echo -e "${CYAN_COLOR}停止 Docker OpenList 容器${RES}"
+    if ! check_openlist_container_exists; then
+        echo -e "${RED_COLOR}OpenList Docker 容器 'openlist' 未找到或已停止。${RES}"
+        read -r -p "按回车键继续..." < /dev/tty
+        return
+    fi
+
+    echo -e "${BLUE_COLOR}正在停止容器 'openlist'...${RES}"
+    if docker stop openlist; then
+        echo -e "${GREEN_COLOR}容器 'openlist' 停止成功。${RES}"
+    else
+        echo -e "${RED_COLOR}容器 'openlist' 停止失败。${RES}"
+    fi
+    read -r -p "按回车键继续..." < /dev/tty
+}
+
+# 启动 Docker OpenList 容器
+docker_start_container() {
+    echo -e "${CYAN_COLOR}启动 Docker OpenList 容器${RES}"
+    if ! check_openlist_container_exists; then
+        echo -e "${RED_COLOR}OpenList Docker 容器 'openlist' 未找到。无法启动一个不存在的容器。${RES}"
+        read -r -p "按回车键继续..." < /dev/tty
+        return
+    fi
+    # Check if it's already running
+    if docker ps --format '{{.Names}}' | grep -q "^openlist$"; then
+        echo -e "${YELLOW_COLOR}OpenList Docker 容器 'openlist' 已经在运行中。${RES}"
+        read -r -p "按回车键继续..." < /dev/tty
+        return
+    fi
+
+    echo -e "${BLUE_COLOR}正在启动容器 'openlist'...${RES}"
+    if docker start openlist; then
+        echo -e "${GREEN_COLOR}容器 'openlist' 启动成功。${RES}"
+    else
+        echo -e "${RED_COLOR}容器 'openlist' 启动失败。请检查 'docker ps -a'。${RES}"
+    fi
+    read -r -p "按回车键继续..." < /dev/tty
+}
+
+# 移除 Docker OpenList 容器
+docker_remove_container() {
+    echo -e "${CYAN_COLOR}移除 Docker OpenList 容器${RES}"
+    if ! check_openlist_container_exists; then
+        echo -e "${RED_COLOR}OpenList Docker 容器 'openlist' 未找到。${RES}"
+        read -r -p "按回车键继续..." < /dev/tty
+        return
+    fi
+
+    echo -e "${RED_COLOR}警告：此操作将移除 OpenList Docker 容器。${RES}"
+    echo -e "${RED_COLOR}如果您没有使用外部卷挂载数据，容器内的数据将会丢失！此操作不可逆！${RES}"
+    echo
+    read -r -p "确认移除容器？请输入 'YES' 确认: " confirm < /dev/tty
+
+    if [ "$confirm" == "YES" ]; then
+        echo -e "${BLUE_COLOR}正在停止并移除容器 'openlist'...${RES}"
+        if docker stop openlist >/dev/null 2>&1; then
+            echo -e "${GREEN_COLOR}容器 'openlist' 已停止。${RES}"
+        else
+            echo -e "${YELLOW_COLOR}容器 'openlist' 未运行或停止时出错，尝试直接移除...${RES}"
+        fi
+
+        if docker rm openlist; then
+            echo -e "${GREEN_COLOR}容器 'openlist' 移除成功。${RES}"
+        else
+            echo -e "${RED_COLOR}容器 'openlist' 移除失败。${RES}"
+        fi
+    else
+        echo -e "${YELLOW_COLOR}已取消容器移除操作。${RES}"
+    fi
+    read -r -p "按回车键继续..." < /dev/tty
+}
+
+
+# Docker 管理菜单
+manage_docker_openlist_menu() {
+    if ! check_docker_installed; then
+        # Message is already displayed by check_docker_installed
+        return
+    fi
+
+    while true; do
+        clear
+        echo -e "${CYAN_COLOR}"
+        echo "╔══════════════════════════════════════════════════════════════╗"
+        echo "║                OpenList Docker 管理                         ║"
+        echo "╚══════════════════════════════════════════════════════════════╝"
+        echo -e "${RES}"
+        echo -e "${BLUE_COLOR}OpenList Docker Management${RES}"
+        echo
+        echo -e "${GREEN_COLOR}1${RES} - 设置管理员密码 (Set Admin Password)"
+        echo -e "${GREEN_COLOR}2${RES} - 重启容器 (Restart Container)"
+        echo -e "${GREEN_COLOR}3${RES} - 查看容器状态 (View Container Status)"
+        echo -e "${GREEN_COLOR}4${RES} - 查看容器日志 (View Container Logs)"
+        echo -e "${GREEN_COLOR}5${RES} - 查看初始密码 (View Initial Password from Logs)"
+        echo -e "${GREEN_COLOR}6${RES} - 停止容器 (Stop Container)"
+        echo -e "${GREEN_COLOR}7${RES} - 启动已停止的容器 (Start Stopped Container)"
+        echo -e "${GREEN_COLOR}8${RES} - 移除容器 (Remove Container)"
+        echo
+        echo -e "${GREEN_COLOR}0${RES} - 返回主菜单 (Return to Main Menu)"
+        echo
+        read -r -p "请输入选项 [0-8]: " choice < /dev/tty
+
+        case "$choice" in
+            1) docker_set_password ;;
+            2) docker_restart_container ;;
+            3) docker_view_status ;;
+            4) docker_view_logs ;;
+            5) docker_view_initial_password ;;
+            6) docker_stop_container ;;
+            7) docker_start_container ;;
+            8) docker_remove_container ;;
+            0) return ;;
+            *)
+                echo -e "${RED_COLOR}无效选项，请重新选择${RES}"
+                read -r -p "按回车键继续..." < /dev/tty
+                ;;
+        esac
+    done
+}
+
+docker_install_openlist() {
+    echo -e "${CYAN_COLOR}"
+    echo "╔══════════════════════════════════════════════════════════════╗"
+    echo "║                   通过 Docker 安装 OpenList                    ║"
+    echo "╚══════════════════════════════════════════════════════════════╝"
+    echo -e "${RES}"
+
+    if ! check_docker_installed; then
+        return
+    fi
+
+    echo -e "${BLUE_COLOR}检查现有 OpenList Docker 容器...${RES}"
+    if docker ps -a --format '{{.Names}}' | grep -q "^openlist$"; then
+        echo -e "${YELLOW_COLOR}看起来 OpenList Docker 容器已经存在。${RES}"
+        echo -e "${YELLOW_COLOR}如果您想重新安装，请先使用管理选项删除它。${RES}"
+        read -r -p "按回车键继续..." < /dev/tty
+        return
+    fi
+
+    echo
+    read -r -p "确认通过 Docker 安装 OpenList？[Y/n]: " confirm < /dev/tty
+    case "${confirm:-y}" in
+        [yY]|"")
+            echo -e "${BLUE_COLOR}正在拉取并运行 OpenList Docker 镜像...${RES}"
+            local docker_command="docker run -d --name openlist -p 5244:5244 --restart unless-stopped ghcr.io/openlistteam/openlist-git:main"
+            echo -e "执行命令: ${PURPLE_COLOR}$docker_command${RES}"
+
+            if $docker_command; then
+                echo -e "${GREEN_COLOR}OpenList Docker 容器已成功启动！${RES}"
+                echo -e "${BLUE_COLOR}默认账号：${RES}admin"
+                echo -e "${BLUE_COLOR}初始密码：${RES}请通过 Docker 管理选项查看容器日志获取，或执行以下命令："
+                echo -e "${PURPLE_COLOR}docker logs openlist${RES}"
+            else
+                echo -e "${RED_COLOR}OpenList Docker 容器启动失败。${RES}"
+                echo -e "${YELLOW_COLOR}请检查 Docker 是否正确运行以及网络连接。${RES}"
+            fi
+            ;;
+        *)
+            echo -e "${YELLOW_COLOR}已取消 Docker 安装${RES}"
+            ;;
+    esac
+    read -r -p "按回车键继续..." < /dev/tty
+}
+
 # 查看日志
 show_logs() {
     echo -e "${CYAN_COLOR}"
@@ -1170,24 +1480,54 @@ show_main_menu() {
         echo -e "${RES}"
         
         # 显示状态
+        local native_installed=false
         if [ -f "$INSTALL_PATH/openlist" ]; then
+            native_installed=true
             if systemctl is-active openlist >/dev/null 2>&1; then
-                echo -e "${GREEN_COLOR}● OpenList 状态：运行中${RES}"
+                echo -e "${GREEN_COLOR}● OpenList 本地状态：运行中${RES}"
             else
-                echo -e "${RED_COLOR}● OpenList 状态：已停止${RES}"
+                echo -e "${RED_COLOR}● OpenList 本地状态：已停止${RES}"
             fi
             
             # 显示版本信息
             if [ -f "$VERSION_FILE" ]; then
                 local version=$(head -n1 "$VERSION_FILE" 2>/dev/null)
                 local install_time=$(tail -n1 "$VERSION_FILE" 2>/dev/null)
-                echo -e "${BLUE_COLOR}● 当前版本：${RES}$version"
-                echo -e "${BLUE_COLOR}● 安装时间：${RES}$install_time"
+                echo -e "${BLUE_COLOR}● 本地版本：${RES}$version"
+                # echo -e "${BLUE_COLOR}● 安装时间：${RES}$install_time" #  Slightly too verbose for main menu
             else
-                echo -e "${YELLOW_COLOR}● 版本信息：未知${RES}"
+                echo -e "${YELLOW_COLOR}● 本地版本：未知${RES}"
             fi
         else
-            echo -e "${YELLOW_COLOR}● OpenList 状态：未安装${RES}"
+            echo -e "${YELLOW_COLOR}● OpenList 本地状态：未安装${RES}"
+        fi
+
+        # Docker 状态显示
+        if command -v docker >/dev/null 2>&1; then # Silently check if docker command exists
+            if check_openlist_container_exists; then
+                local docker_status
+                docker_status=$(docker ps --filter name=openlist --format "{{.Status}}")
+                if [[ "$docker_status" == *"Up"* ]]; then
+                    echo -e "${GREEN_COLOR}● OpenList Docker 状态：运行中 ($docker_status)${RES}"
+                elif [[ "$docker_status" == *"Exited"* ]] || [[ "$docker_status" == *"Created"* ]]; then
+                     echo -e "${YELLOW_COLOR}● OpenList Docker 状态：已停止 ($docker_status)${RES}"
+                else
+                    echo -e "${BLUE_COLOR}● OpenList Docker 状态：$docker_status${RES}"
+                fi
+
+                local docker_image
+                docker_image=$(docker inspect openlist --format "{{.Config.Image}}" 2>/dev/null)
+                if [ -n "$docker_image" ]; then
+                    echo -e "${BLUE_COLOR}● Docker 镜像: $docker_image${RES}"
+                fi
+            else
+                # Only show "not found" if no native install is found, to avoid clutter
+                # or if explicitly desired. For now, show if Docker is installed but container isn't there.
+                 echo -e "${YELLOW_COLOR}● OpenList Docker 状态：未找到容器${RES}"
+            fi
+        # else
+            # If docker is not installed, check_docker_installed() called by menus will inform user.
+            # No need to add more messages here to keep menu clean.
         fi
         
         echo
@@ -1207,31 +1547,35 @@ show_main_menu() {
         echo -e "${PURPLE_COLOR}═══ 高级操作 ═══${RES}"
         echo -e "${GREEN_COLOR}10${RES} - 修改管理员密码"
         echo
+        echo -e "${PURPLE_COLOR}═══ Docker 管理 ═══${RES}"
+        echo -e "${GREEN_COLOR}11${RES} - 通过 Docker 安装 OpenList"
+        echo -e "${GREEN_COLOR}12${RES} - 管理 Docker 中的 OpenList"
+        echo
         echo -e "${GREEN_COLOR}0${RES}  - 退出脚本"
         echo
         
         # 强制从终端读取输入，以解决在特殊环境下（如通过管道或在某些 shell 中执行）的输入问题
-        read -p "请输入选项 [0-10]: " -r choice < /dev/tty
+        read -p "请输入选项 [0-12]: " -r choice < /dev/tty
         
         # 添加调试信息
         echo -e "${YELLOW_COLOR}[调试] 输入的选项: '$choice'${RES}"
         
         # 检查输入是否为空
         if [ -z "$choice" ]; then
-            echo -e "${RED_COLOR}请输入有效的选项 [0-10]${RES}"
+            echo -e "${RED_COLOR}请输入有效的选项 [0-12]${RES}"
             sleep 2
             continue
         fi
         
         # 检查输入是否为数字
         if ! [[ "$choice" =~ ^[0-9]+$ ]]; then
-            echo -e "${RED_COLOR}请输入数字选项 [0-10]${RES}"
+            echo -e "${RED_COLOR}请输入数字选项 [0-12]${RES}"
             sleep 2
             continue
         fi
         
         case "$choice" in
-            1) 
+            1)
                 echo -e "${YELLOW_COLOR}[调试] 执行: install_openlist${RES}"
                 check_disk_space && install_openlist
                 ;;
@@ -1271,11 +1615,19 @@ show_main_menu() {
                 echo -e "${YELLOW_COLOR}[调试] 执行: manage_password${RES}"
                 manage_password
                 ;;
-            0) 
+            11)
+                echo -e "${YELLOW_COLOR}[调试] 执行: docker_install_openlist${RES}"
+                docker_install_openlist
+                ;;
+            12)
+                echo -e "${YELLOW_COLOR}[调试] 执行: manage_docker_openlist_menu${RES}"
+                manage_docker_openlist_menu
+                ;;
+            0)
                 echo -e "${GREEN_COLOR}谢谢使用！${RES}"
                 exit 0
                 ;;
-            *) 
+            *)
                 echo -e "${RED_COLOR}无效选项，请重新选择${RES}"
                 echo -e "${YELLOW_COLOR}[调试] 无效选项: '$choice'${RES}"
                 sleep 2

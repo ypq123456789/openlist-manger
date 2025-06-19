@@ -18,12 +18,13 @@
 - **数据迁移**：提供从 Alist 无缝迁移数据到 OpenList 的功能。
 - **系统兼容性**：支持 x86_64 和 aarch64 架构，并在主流 Linux 发行版（如 Ubuntu, Debian, CentOS）上经过测试。
 - **智能依赖检查**：自动检查并提示安装 `curl` 和 `tar` 等必要依赖。
+- **Docker 支持**: 提供通过 Docker 安装和管理 OpenList 的选项，简化部署流程。
 
 ## 系统要求
 
 - 操作系统：支持 systemd 的主流 Linux 发行版 (如 Ubuntu, Debian, CentOS 等)
 - 用户权限：需要 `root` 权限来执行安装和服务管理等操作。
-- 必要命令：`curl` 和 `tar`。
+- 必要命令：`curl`、`tar` (以及 `docker` 如果您计划使用 Docker 相关功能)。
 - 系统架构：`x86_64 (amd64)` 或 `aarch64 (arm64)`。
 
 ## 使用方法
@@ -57,9 +58,28 @@
     -   **随机生成密码**：调用 `openlist admin random` 生成一个随机的新密码。
     -   **手动设置密码**：调用 `openlist admin set <密码>` 手动指定一个新密码。
 
+### Docker 管理 (Docker Management)
+
+-   **11. 通过 Docker 安装 OpenList**: 使用 Docker 快速部署 OpenList。脚本将拉取最新的 `ghcr.io/openlistteam/openlist-git:main` 镜像并在容器中运行 OpenList。
+-   **12. 管理 Docker 中的 OpenList**: 进入 Docker 管理子菜单，对已通过 Docker 安装的 OpenList 实例进行维护。
+
 ### 退出
 
 -   **0. 退出脚本**：安全退出本管理脚本。
+
+#### Docker 管理子菜单详解 (OpenList Docker Management)
+
+当您选择主菜单中的“管理 Docker 中的 OpenList”后，将进入此子菜单：
+
+-   **1. 设置管理员密码**: 修改在 Docker 容器中运行的 OpenList 实例的管理员密码。
+-   **2. 重启容器**: 重启 `openlist` Docker 容器。
+-   **3. 查看容器状态**: 显示 `openlist` Docker 容器的当前状态 (类似于 `docker ps` 命令)。
+-   **4. 查看容器日志**: 查看 `openlist` Docker 容器的日志，可选择查看最近的日志或实时跟踪日志。
+-   **5. 查看初始密码**: 从 Docker 容器日志中查找并显示 OpenList 的初始管理员密码。
+-   **6. 停止容器**: 停止运行中的 `openlist` Docker 容器。
+-   **7. 启动已停止的容器**: 启动一个已存在但当前已停止的 `openlist` Docker 容器。
+-   **8. 移除容器**: 停止并移除 `openlist` Docker 容器。注意：此操作可能会导致数据丢失，除非数据存储在外部卷上。
+-   **0. 返回主菜单**: 退出 Docker 管理子菜单，返回到主脚本菜单。
 
 ## 贡献与反馈
 
