@@ -1,8 +1,35 @@
 # OpenList 交互式管理脚本
 
-一个功能强大且用户友好的 OpenList 交互式管理脚本，旨在简化 OpenList 的安装、配置和日常维护任务。
+一个用于管理 OpenList 的交互式 Shell 脚本，支持 Linux、macOS、Windows (WSL) 和 Android Termux。
 
-[![版本](https://img.shields.io/badge/版本-v1.5.8-blue.svg)](onelist.sh)
+## 一键安装 / 更新
+
+运行以下命令即可完成 OpenList 管理脚本的安装或更新。此命令会自动下载最新版本的脚本，并将其安装为系统级的 `openlist` 命令。
+
+```bash
+sudo curl -fsSL "https://raw.githubusercontent.com/ypq123456789/openlist/refs/heads/main/onelist.sh" -o /usr/local/bin/openlist && sudo chmod +x /usr/local/bin/openlist && openlist
+```
+
+> 该命令会执行以下操作：
+> 1.  使用 `sudo` 权限下载脚本并保存到 `/usr/local/bin/openlist`。
+> 2.  使用 `sudo` 权限为脚本授予执行权限。
+> 3.  立即运行 `openlist` 命令，启动交互式菜单。
+
+## 日常使用
+
+安装成功后，在任何路径下输入以下命令即可唤出管理菜单：
+```bash
+openlist
+```
+
+## 主要功能
+
+- **交互式菜单**：通过简单的菜单选项完成所有操作。
+- **跨平台支持**：自动检测并适配多种操作系统。
+- **服务管理**：轻松安装、更新、卸载、启动、停止和重启 OpenList 服务。
+- **状态和日志**：快速查看 OpenList 的运行状态和日志。
+- **数据迁移**：支持从 Alist 一键迁移数据。
+- **简化的安装和更新**：通过重新运行脚本即可完成安装和更新。
 
 ## 环境检测与推荐
 
@@ -40,24 +67,6 @@
 - 必要命令：`curl` 和 `tar`。
 - 系统架构：`x86_64 (amd64)` 或 `aarch64 (arm64)`。
 - Docker 相关功能需支持 Docker 环境（脚本可自动安装 Docker）。
-
-## 使用方法
-
-> **注意：** 脚本首次执行需要root权限，会自动安装到 `/usr/local/bin/` 目录，之后可在任何地方直接执行 `openlist` 命令调用脚本。脚本会自动检查并更新到最新版本。
-
-### 推荐：一键运行脚本（无需下载，适合快速体验/云主机/临时环境）
-
-```bash
-curl -fsSL "https://raw.githubusercontent.com/ypq123456789/openlist/refs/heads/main/openlist.sh" | sudo bash
-```
-
-### 可选：本地下载后运行（适合需自定义或长期维护的用户）
-
-```bash
-curl -fsSL "https://raw.githubusercontent.com/ypq123456789/openlist/refs/heads/main/openlist.sh" -o openlist.sh
-chmod +x openlist.sh
-sudo ./openlist.sh
-```
 
 ## 脚本菜单详解
 
