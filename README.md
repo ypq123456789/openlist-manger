@@ -43,12 +43,14 @@
 ## 使用方法
 
 ### 推荐：一键运行脚本（无需下载，适合快速体验/云主机/临时环境）
+安装完成后想再进入脚本就继续一键运行脚本，脚本自动更新
 
 ```bash
 curl -fsSL "https://raw.githubusercontent.com/ypq123456789/openlist/refs/heads/main/openlist.sh" | sudo bash
 ```
 
 ### 可选：本地下载后运行（适合需自定义或长期维护的用户）
+安装完成后想再进入脚本只需输入最后一步，但脚本没法自动更新
 
 ```bash
 curl -fsSL "https://raw.githubusercontent.com/ypq123456789/openlist/refs/heads/main/openlist.sh" -o openlist.sh
