@@ -3,7 +3,7 @@
 #
 # OpenList Interactive Manager Script
 #
-# Version: 1.6.4
+# Version: 1.6.5
 # Last Updated: 2025-06-21
 #
 # Description:
@@ -27,7 +27,7 @@
 GITHUB_REPO="OpenListTeam/OpenList"
 VERSION_TAG="beta"
 VERSION_FILE="/opt/openlist/.version"
-MANAGER_VERSION="1.6.4"  # 更新管理器版本号
+MANAGER_VERSION="1.6.5"  # 更新管理器版本号
 
 # 颜色配置
 RED_COLOR='\e[1;31m'
@@ -965,24 +965,38 @@ update_openlist() {
     
     echo -e "${BLUE_COLOR}当前使用版本：${RES}$VERSION_TAG"
     echo
-    echo -e "${GREEN_COLOR}1${RES} - 更新到最新版本"
-    echo -e "${GREEN_COLOR}2${RES} - 选择其他版本"
-    echo -e "${GREEN_COLOR}3${RES} - 返回主菜单"
+    echo -e "${GREEN_COLOR}1${RES} - 更新到正式版最新版本"
+    echo -e "${GREEN_COLOR}2${RES} - 更新到开发版最新版本"
+    echo -e "${GREEN_COLOR}3${RES} - 选择其他版本"
+    echo -e "${GREEN_COLOR}4${RES} - 返回主菜单"
     echo
-    
     while true; do
-        read -r -p "请选择 [1-3]: " update_choice < /dev/tty
+        update_choice=$(default_read "请选择 [1-4] (默认1): " "1")
         case "$update_choice" in
             1)
+                # 获取最新正式版 release tag
+                latest_release=$(curl -s https://api.github.com/repos/OpenListTeam/OpenList/releases/latest | grep 'tag_name' | head -1 | cut -d '"' -f4)
+                if [ -n "$latest_release" ]; then
+                    VERSION_TAG="$latest_release"
+                    echo -e "${GREEN_COLOR}将更新到最新正式版: $VERSION_TAG${RES}"
+                else
+                    VERSION_TAG="beta"
+                    echo -e "${YELLOW_COLOR}未获取到正式版，使用 beta${RES}"
+                fi
                 break
                 ;;
             2)
+                VERSION_TAG="beta"
+                echo -e "${GREEN_COLOR}将更新到开发版: beta${RES}"
+                break
+                ;;
+            3)
                 if ! select_version; then
                     return
                 fi
                 break
                 ;;
-            3)
+            4)
                 return
                 ;;
             *)
