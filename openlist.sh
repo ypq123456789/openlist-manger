@@ -3,7 +3,7 @@
 #
 # OpenList Interactive Manager Script
 #
-# Version: 1.6.3
+# Version: 1.6.4
 # Last Updated: 2025-06-21
 #
 # Description:
@@ -27,7 +27,7 @@
 GITHUB_REPO="OpenListTeam/OpenList"
 VERSION_TAG="beta"
 VERSION_FILE="/opt/openlist/.version"
-MANAGER_VERSION="1.6.3"  # 更新管理器版本号
+MANAGER_VERSION="1.6.4"  # 更新管理器版本号
 
 # 颜色配置
 RED_COLOR='\e[1;31m'
@@ -689,10 +689,8 @@ setup_proxy() {
     echo -e "${GREEN_COLOR}3${RES} - 使用 mirror.ghproxy.com"
     echo -e "${GREEN_COLOR}4${RES} - 自定义代理地址"
     echo
-    
     while true; do
-        read -r -p "请输入选项 [1-4]: " proxy_choice < /dev/tty
-        
+        proxy_choice=$(default_read "请输入选项 [1-4] (默认1): " "1")
         case "$proxy_choice" in
             1)
                 GH_PROXY=""
@@ -711,8 +709,8 @@ setup_proxy() {
                 ;;
             4)
                 echo -e "${YELLOW_COLOR}代理地址格式：https://example.com/${RES}"
-                read -r -p "请输入代理地址: " custom_proxy < /dev/tty
-                if [[ "$custom_proxy" =~ ^https://.*[/]$ ]]; then
+                custom_proxy=$(default_read "请输入代理地址 (以/结尾): " "")
+                if [[ "$custom_proxy" =~ ^https://.*/$ ]]; then
                     GH_PROXY="$custom_proxy"
                     echo -e "${GREEN_COLOR}已设置代理：$GH_PROXY${RES}"
                 else
@@ -726,7 +724,6 @@ setup_proxy() {
                 ;;
         esac
     done
-    
     sleep 1
 }
 
@@ -1923,7 +1920,7 @@ show_domain_proxy_menu() {
         echo -e "${GREEN_COLOR}1${RES} - 一键配置域名反向代理"
         echo -e "${GREEN_COLOR}0${RES} - 返回主菜单"
         echo
-        read -r -p "请输入选项 [0-1]: " choice < /dev/tty
+        choice=$(default_read "请输入选项 [0-1] (默认0): " "0")
         case "$choice" in
             1)
                 setup_nginx_proxy
@@ -2079,7 +2076,7 @@ show_auto_update_menu() {
         echo -e "${GREEN_COLOR}5${RES} - 取消 Docker 自动更新"
         echo -e "${GREEN_COLOR}0${RES} - 返回主菜单"
         echo
-        read -r -p "请输入选项 [0-5]: " choice < /dev/tty
+        choice=$(default_read "请输入选项 [0-5] (默认0): " "0")
         case "$choice" in
             1|2)
                 local mode="bin"
@@ -2090,7 +2087,7 @@ show_auto_update_menu() {
                 echo -e "${GREEN_COLOR}3${RES} - 每天更新"
                 echo -e "${GREEN_COLOR}4${RES} - 每周更新"
                 echo -e "${GREEN_COLOR}5${RES} - 自定义 crontab 表达式"
-                read -r -p "请选择 [1-5]: " freq < /dev/tty
+                freq=$(default_read "请选择 [1-5] (默认3): " "3")
                 local schedule
                 case "$freq" in
                     1) schedule="0 * * * *";;
@@ -2098,7 +2095,7 @@ show_auto_update_menu() {
                     3) schedule="0 3 * * *";;
                     4) schedule="0 3 * * 0";;
                     5)
-                        read -r -p "请输入自定义 crontab 时间表达式: " schedule < /dev/tty
+                        schedule=$(default_read "请输入自定义 crontab 时间表达式: " "0 3 * * *")
                         ;;
                     *)
                         echo -e "${RED_COLOR}无效选项${RES}"
