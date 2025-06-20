@@ -2,7 +2,7 @@
 
 一个功能强大且用户友好的 OpenList 交互式管理脚本，旨在简化 OpenList 的安装、配置和日常维护任务。
 
-[![版本](https://img.shields.io/badge/版本-v1.5.0-blue.svg)](onelist.sh)
+[![版本](https://img.shields.io/badge/版本-v1.5.4-blue.svg)](onelist.sh)
 
 ## 环境检测与推荐
 
@@ -42,20 +42,7 @@
 
 ## 使用方法
 
-### 自动安装到系统PATH（推荐）
-脚本支持自动安装功能，首次执行时会自动安装到 `/usr/local/bin/` 目录，之后可在任何地方直接执行 `openlist` 命令：
-
-```bash
-# 一键执行（自动安装到系统PATH）
-curl -fsSL "https://raw.githubusercontent.com/ypq123456789/openlist/refs/heads/main/openlist.sh" | sudo bash
-
-# 或下载后执行（也会自动安装到系统PATH）
-curl -fsSL "https://raw.githubusercontent.com/ypq123456789/openlist/refs/heads/main/openlist.sh" -o openlist.sh
-chmod +x openlist.sh
-sudo ./openlist.sh
-```
-
-> **注意：** 首次执行需要root权限，安装完成后即可在任何目录直接使用 `openlist` 命令。
+> **注意：** 脚本支持自动安装功能，首次执行需要root权限，会自动安装到 `/usr/local/bin/` 目录，之后可在任何地方直接执行 `openlist` 命令
 
 ### 推荐：一键运行脚本（无需下载，适合快速体验/云主机/临时环境）
 安装完成后想再进入脚本就继续一键运行脚本，脚本自动更新
