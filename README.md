@@ -4,16 +4,21 @@
 
 ## 一键安装 / 更新
 
-运行以下命令即可完成 OpenList 管理脚本的安装或更新。此命令会自动下载最新版本的脚本，并将其安装为系统级的 `openlist` 命令。
+### Linux / macOS / WSL
 
 ```bash
 sudo curl -fsSL "https://raw.githubusercontent.com/ypq123456789/openlist-manger/refs/heads/main/openlist.sh" -o /usr/local/bin/openlist && sudo chmod +x /usr/local/bin/openlist && openlist
 ```
 
-> 该命令会执行以下操作：
-> 1.  使用 `sudo` 权限下载脚本并保存到 `/usr/local/bin/openlist`。
-> 2.  使用 `sudo` 权限为脚本授予执行权限。
-> 3.  立即运行 `openlist` 命令，启动交互式菜单。
+> 如遇 `/usr/local/bin` 不存在，可先执行：`sudo mkdir -p /usr/local/bin`
+
+### Android Termux
+
+```bash
+curl -fsSL "https://raw.githubusercontent.com/ypq123456789/openlist-manger/refs/heads/main/openlist.sh" -o $PREFIX/bin/openlist && chmod +x $PREFIX/bin/openlist && openlist
+```
+
+> Windows 用户请在 WSL 环境下使用本脚本，原生 Windows 不支持 Bash 脚本。
 
 ## 日常使用
 
