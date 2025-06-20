@@ -2,7 +2,7 @@
 
 一个功能强大且用户友好的 OpenList 交互式管理脚本，旨在简化 OpenList 的安装、配置和日常维护任务。
 
-[![版本](https://img.shields.io/badge/版本-v1.5.7-blue.svg)](onelist.sh)
+[![版本](https://img.shields.io/badge/版本-v1.5.8-blue.svg)](onelist.sh)
 
 ## 环境检测与推荐
 
