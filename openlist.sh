@@ -3,7 +3,7 @@
 #
 # OpenList Interactive Manager Script
 #
-# Version: 1.6.2
+# Version: 1.6.3
 # Last Updated: 2025-06-21
 #
 # Description:
@@ -27,7 +27,7 @@
 GITHUB_REPO="OpenListTeam/OpenList"
 VERSION_TAG="beta"
 VERSION_FILE="/opt/openlist/.version"
-MANAGER_VERSION="1.6.2"  # 更新管理器版本号
+MANAGER_VERSION="1.6.3"  # 更新管理器版本号
 
 # 颜色配置
 RED_COLOR='\e[1;31m'
