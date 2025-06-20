@@ -16,7 +16,7 @@
 #   - curl, tar
 #
 # Installation:
-#   sudo curl -fsSL "https://raw.githubusercontent.com/ypq123456789/openlist/refs/heads/main/onelist.sh" -o /usr/local/bin/openlist && sudo chmod +x /usr/local/bin/openlist && openlist
+#   sudo curl -fsSL "https://raw.githubusercontent.com/ypq123456789/openlist-manger/refs/heads/main/openlist.sh" -o /usr/local/bin/openlist && sudo chmod +x /usr/local/bin/openlist && openlist
 #
 # Usage:
 #   openlist
