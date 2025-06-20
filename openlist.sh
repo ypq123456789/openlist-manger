@@ -3,31 +3,97 @@
 #
 # OpenList Interactive Manager Script
 #
-# Version: 1.4.7
-# Last Updated: 2025-06-19
+# Version: 1.5.4
+# Last Updated: 2025-06-20
 #
 # Description: 
 #   An interactive management script for OpenList
+#   Cross-platform support: Linux, Windows (WSL), macOS, Android Termux
 #   Download first, then execute - no direct pipe installation
 #
 # Requirements:
-#   - Linux with systemd
-#   - Root privileges for installation
+#   - Linux with systemd (or compatible systems)
+#   - Root privileges for installation (or appropriate permissions)
 #   - curl, tar
 #   - x86_64 or arm64 architecture
+#
+# Supported Platforms:
+#   - Linux (Ubuntu, Debian, CentOS, etc.)
+#   - Windows (WSL/WSL2)
+#   - macOS
+#   - Android Termux
 #
 # Usage:
 #   curl -fsSL "https://raw.githubusercontent.com/ypq123456789/openlist/refs/heads/main/openlist.sh" -o openlist.sh
 #   chmod +x openlist.sh
-#   sudo ./openlist.sh
+#   sudo ./openlist.sh  # Linux/macOS
+#   ./openlist.sh       # Termux
 #
 ###############################################################################
+
+# ===================== 自安装功能 =====================
+
+# 自动安装到系统PATH
+install_to_system_path() {
+    # 检查是否已经在系统PATH中
+    if [[ "$0" == "/usr/local/bin/openlist" ]]; then
+        return 0
+    fi
+    
+    # 检查是否通过管道执行（curl | bash）
+    if [[ "$0" == "/dev/fd/"* ]] || [[ "$0" == "/proc/self/fd/"* ]]; then
+        echo -e "${BLUE_COLOR}检测到通过管道执行，正在安装到系统PATH...${RES}"
+    else
+        # 检查是否在系统PATH中
+        local script_path=$(which openlist 2>/dev/null)
+        if [[ -n "$script_path" ]] && [[ "$script_path" == "/usr/local/bin/openlist" ]]; then
+            return 0
+        fi
+        
+        echo -e "${BLUE_COLOR}检测到本地执行，正在安装到系统PATH...${RES}"
+    fi
+    
+    # 检查是否有root权限
+    if [[ "$(id -u)" != "0" ]]; then
+        echo -e "${RED_COLOR}需要root权限来安装到系统PATH${RES}"
+        echo -e "${YELLOW_COLOR}请使用: sudo $0${RES}"
+        exit 1
+    fi
+    
+    # 创建临时文件来保存脚本内容
+    local temp_script="/tmp/openlist_install_$$.sh"
+    
+    # 如果是通过管道执行，需要从标准输入读取脚本内容
+    if [[ "$0" == "/dev/fd/"* ]] || [[ "$0" == "/proc/self/fd/"* ]]; then
+        # 从标准输入读取脚本内容并保存到临时文件
+        cat > "$temp_script"
+    else
+        # 复制当前脚本到临时文件
+        cp "$0" "$temp_script"
+    fi
+    
+    # 复制到系统PATH
+    if cp "$temp_script" "/usr/local/bin/openlist"; then
+        chmod +x "/usr/local/bin/openlist"
+        rm -f "$temp_script"
+        echo -e "${GREEN_COLOR}安装成功！现在可以在任何地方使用 'openlist' 命令${RES}"
+        echo -e "${YELLOW_COLOR}重新执行: openlist${RES}"
+        exec "/usr/local/bin/openlist" "$@"
+    else
+        rm -f "$temp_script"
+        echo -e "${RED_COLOR}安装失败${RES}"
+        exit 1
+    fi
+}
+
+# 在脚本开始时执行自安装检查
+install_to_system_path
 
 # 配置部分
 GITHUB_REPO="OpenListTeam/OpenList"
 VERSION_TAG="beta"
 VERSION_FILE="/opt/openlist/.version"
-MANAGER_VERSION="1.4.7"  # 更新管理器版本号
+MANAGER_VERSION="1.5.4"  # 更新管理器版本号
 
 # 颜色配置
 RED_COLOR='\e[1;31m'
@@ -37,6 +103,388 @@ BLUE_COLOR='\e[1;34m'
 CYAN_COLOR='\e[1;36m'
 PURPLE_COLOR='\e[1;35m'
 RES='\e[0m'
+
+# ===================== 跨平台系统检测 =====================
+
+# 检测操作系统类型
+detect_os() {
+    if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+        # Linux
+        if [[ -f /etc/os-release ]]; then
+            . /etc/os-release
+            OS_TYPE="linux"
+            OS_NAME="$ID"
+            OS_VERSION="$VERSION_ID"
+        else
+            OS_TYPE="linux"
+            OS_NAME="unknown"
+            OS_VERSION="unknown"
+        fi
+    elif [[ "$OSTYPE" == "darwin"* ]]; then
+        # macOS
+        OS_TYPE="macos"
+        OS_NAME="macos"
+        OS_VERSION=$(sw_vers -productVersion 2>/dev/null || echo "unknown")
+    elif [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "cygwin" ]] || [[ "$OSTYPE" == "win32" ]]; then
+        # Windows (Git Bash, Cygwin, etc.)
+        OS_TYPE="windows"
+        OS_NAME="windows"
+        OS_VERSION="unknown"
+    elif [[ -d "/data/data/com.termux" ]]; then
+        # Android Termux
+        OS_TYPE="termux"
+        OS_NAME="termux"
+        OS_VERSION="unknown"
+    else
+        OS_TYPE="unknown"
+        OS_NAME="unknown"
+        OS_VERSION="unknown"
+    fi
+    
+    echo -e "${BLUE_COLOR}检测到系统：${OS_TYPE} (${OS_NAME} ${OS_VERSION})${RES}"
+}
+
+# 检查权限（跨平台）
+check_permissions() {
+    local need_root=false
+    
+    case "$OS_TYPE" in
+        "linux")
+            # Linux 需要 root 权限
+            need_root=true
+            ;;
+        "macos")
+            # macOS 通常需要管理员权限
+            need_root=true
+            ;;
+        "windows")
+            # Windows 在 WSL 中需要 root
+            if [[ -f /proc/version ]] && grep -q Microsoft /proc/version; then
+                need_root=true
+            fi
+            ;;
+        "termux")
+            # Termux 不需要 root
+            need_root=false
+            ;;
+        *)
+            need_root=true
+            ;;
+    esac
+    
+    if [[ "$need_root" == "true" ]] && [[ "$(id -u)" != "0" ]]; then
+        echo -e "${RED_COLOR}错误：需要管理员权限运行此脚本${RES}"
+        case "$OS_TYPE" in
+            "linux")
+                echo -e "${YELLOW_COLOR}请使用: sudo ./openlist.sh${RES}"
+                ;;
+            "macos")
+                echo -e "${YELLOW_COLOR}请使用: sudo ./openlist.sh${RES}"
+                ;;
+            "windows")
+                echo -e "${YELLOW_COLOR}请在 WSL 中使用: sudo ./openlist.sh${RES}"
+                ;;
+        esac
+        read -r -p "按回车键退出..." < /dev/tty
+        exit 1
+    fi
+}
+
+# 检查包管理器（跨平台）
+check_package_manager() {
+    case "$OS_TYPE" in
+        "linux")
+            if command -v apt >/dev/null 2>&1; then
+                PACKAGE_MANAGER="apt"
+            elif command -v yum >/dev/null 2>&1; then
+                PACKAGE_MANAGER="yum"
+            elif command -v dnf >/dev/null 2>&1; then
+                PACKAGE_MANAGER="dnf"
+            elif command -v pacman >/dev/null 2>&1; then
+                PACKAGE_MANAGER="pacman"
+            else
+                PACKAGE_MANAGER="unknown"
+            fi
+            ;;
+        "macos")
+            if command -v brew >/dev/null 2>&1; then
+                PACKAGE_MANAGER="brew"
+            else
+                PACKAGE_MANAGER="unknown"
+            fi
+            ;;
+        "termux")
+            if command -v pkg >/dev/null 2>&1; then
+                PACKAGE_MANAGER="pkg"
+            else
+                PACKAGE_MANAGER="unknown"
+            fi
+            ;;
+        *)
+            PACKAGE_MANAGER="unknown"
+            ;;
+    esac
+    
+    echo -e "${BLUE_COLOR}包管理器：${PACKAGE_MANAGER}${RES}"
+}
+
+# 安装依赖包（跨平台）
+install_dependencies() {
+    local missing_deps=()
+    
+    if ! command -v curl >/dev/null 2>&1; then
+        missing_deps+=("curl")
+    fi
+    
+    if ! command -v tar >/dev/null 2>&1; then
+        missing_deps+=("tar")
+    fi
+    
+    if [ ${#missing_deps[@]} -eq 0 ]; then
+        return 0
+    fi
+    
+    echo -e "${RED_COLOR}缺少必要的依赖包：${missing_deps[*]}${RES}"
+    echo -e "${YELLOW_COLOR}正在尝试安装依赖包...${RES}"
+    
+    case "$PACKAGE_MANAGER" in
+        "apt")
+            apt update && apt install -y "${missing_deps[@]}" || return 1
+            ;;
+        "yum")
+            yum install -y "${missing_deps[@]}" || return 1
+            ;;
+        "dnf")
+            dnf install -y "${missing_deps[@]}" || return 1
+            ;;
+        "pacman")
+            pacman -S --noconfirm "${missing_deps[@]}" || return 1
+            ;;
+        "brew")
+            brew install "${missing_deps[@]}" || return 1
+            ;;
+        "pkg")
+            pkg install -y "${missing_deps[@]}" || return 1
+            ;;
+        *)
+            echo -e "${RED_COLOR}无法自动安装依赖包，请手动安装：${missing_deps[*]}${RES}"
+            return 1
+            ;;
+    esac
+    
+    echo -e "${GREEN_COLOR}依赖包安装完成${RES}"
+    return 0
+}
+
+# 检查 systemd（跨平台）
+check_systemd() {
+    case "$OS_TYPE" in
+        "linux")
+            if ! command -v systemctl >/dev/null 2>&1; then
+                echo -e "${YELLOW_COLOR}警告：系统不支持 systemd${RES}"
+                echo -e "${YELLOW_COLOR}服务管理功能可能不可用${RES}"
+                SYSTEMD_AVAILABLE=false
+            else
+                SYSTEMD_AVAILABLE=true
+            fi
+            ;;
+        "macos"|"windows"|"termux")
+            echo -e "${YELLOW_COLOR}当前系统不支持 systemd，将使用替代方案${RES}"
+            SYSTEMD_AVAILABLE=false
+            ;;
+        *)
+            SYSTEMD_AVAILABLE=false
+            ;;
+    esac
+}
+
+# 获取本机IP（跨平台）
+get_local_ip() {
+    case "$OS_TYPE" in
+        "linux"|"windows")
+            # Linux 和 WSL
+            curl -s https://api.ipify.org 2>/dev/null || hostname -I | awk '{print $1}' 2>/dev/null || echo "127.0.0.1"
+            ;;
+        "macos")
+            # macOS
+            curl -s https://api.ipify.org 2>/dev/null || ifconfig | grep "inet " | grep -v 127.0.0.1 | awk '{print $2}' | head -n1 2>/dev/null || echo "127.0.0.1"
+            ;;
+        "termux")
+            # Termux
+            curl -s https://api.ipify.org 2>/dev/null || ip addr show | grep -w inet | grep -v "127.0.0.1" | awk '{print $2}' | cut -d/ -f1 | head -n1 2>/dev/null || echo "127.0.0.1"
+            ;;
+        *)
+            echo "127.0.0.1"
+            ;;
+    esac
+}
+
+# 设置安装路径（跨平台）
+get_install_path() {
+    case "$OS_TYPE" in
+        "linux"|"windows")
+            echo "/opt/openlist"
+            ;;
+        "macos")
+            echo "/usr/local/opt/openlist"
+            ;;
+        "termux")
+            echo "$HOME/openlist"
+            ;;
+        *)
+            echo "/opt/openlist"
+            ;;
+    esac
+}
+
+# 创建服务（跨平台）
+create_service() {
+    local install_path=$1
+    
+    case "$OS_TYPE" in
+        "linux"|"windows")
+            if [[ "$SYSTEMD_AVAILABLE" == "true" ]]; then
+                # 创建 systemd 服务
+                cat > /etc/systemd/system/openlist.service << EOF
+[Unit]
+Description=OpenList service
+Wants=network.target
+After=network.target network.service
+
+[Service]
+Type=simple
+WorkingDirectory=$install_path
+ExecStart=$install_path/openlist server
+KillMode=process
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+EOF
+                systemctl daemon-reload
+                systemctl enable openlist
+                echo -e "${GREEN_COLOR}systemd 服务创建成功${RES}"
+            else
+                echo -e "${YELLOW_COLOR}跳过 systemd 服务创建${RES}"
+            fi
+            ;;
+        "macos")
+            # macOS 使用 launchd
+            cat > /Library/LaunchDaemons/com.openlist.plist << EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.openlist</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>$install_path/openlist</string>
+        <string>server</string>
+    </array>
+    <key>WorkingDirectory</key>
+    <string>$install_path</string>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+</dict>
+</plist>
+EOF
+            echo -e "${GREEN_COLOR}launchd 服务创建成功${RES}"
+            ;;
+        "termux")
+            # Termux 使用 nohup 或 screen
+            echo -e "${YELLOW_COLOR}Termux 环境，请手动启动服务：${RES}"
+            echo -e "nohup $install_path/openlist server > $install_path/openlist.log 2>&1 &"
+            ;;
+    esac
+}
+
+# 启动服务（跨平台）
+start_service() {
+    case "$OS_TYPE" in
+        "linux"|"windows")
+            if [[ "$SYSTEMD_AVAILABLE" == "true" ]]; then
+                systemctl start openlist
+            else
+                echo -e "${YELLOW_COLOR}请手动启动服务${RES}"
+            fi
+            ;;
+        "macos")
+            launchctl load /Library/LaunchDaemons/com.openlist.plist
+            ;;
+        "termux")
+            echo -e "${YELLOW_COLOR}请手动启动服务${RES}"
+            ;;
+    esac
+}
+
+# 停止服务（跨平台）
+stop_service() {
+    case "$OS_TYPE" in
+        "linux"|"windows")
+            if [[ "$SYSTEMD_AVAILABLE" == "true" ]]; then
+                systemctl stop openlist
+            else
+                echo -e "${YELLOW_COLOR}请手动停止服务${RES}"
+            fi
+            ;;
+        "macos")
+            launchctl unload /Library/LaunchDaemons/com.openlist.plist
+            ;;
+        "termux")
+            echo -e "${YELLOW_COLOR}请手动停止服务${RES}"
+            ;;
+    esac
+}
+
+# 检查服务状态（跨平台）
+check_service_status() {
+    case "$OS_TYPE" in
+        "linux"|"windows")
+            if [[ "$SYSTEMD_AVAILABLE" == "true" ]]; then
+                systemctl is-active openlist >/dev/null 2>&1
+            else
+                # 检查进程
+                pgrep -f "openlist server" >/dev/null 2>&1
+            fi
+            ;;
+        "macos")
+            launchctl list | grep -q com.openlist
+            ;;
+        "termux")
+            pgrep -f "openlist server" >/dev/null 2>&1
+            ;;
+        *)
+            false
+            ;;
+    esac
+}
+
+# 获取服务日志（跨平台）
+get_service_logs() {
+    case "$OS_TYPE" in
+        "linux"|"windows")
+            if [[ "$SYSTEMD_AVAILABLE" == "true" ]]; then
+                journalctl -u openlist --no-pager -n 50
+            else
+                echo -e "${YELLOW_COLOR}无法获取服务日志，请检查进程输出${RES}"
+            fi
+            ;;
+        "macos")
+            log show --predicate 'process == "openlist"' --last 1h
+            ;;
+        "termux")
+            if [[ -f "$INSTALL_PATH/openlist.log" ]]; then
+                tail -n 50 "$INSTALL_PATH/openlist.log"
+            else
+                echo -e "${YELLOW_COLOR}未找到日志文件${RES}"
+            fi
+            ;;
+    esac
+}
 
 # ===================== Docker 镜像标签选择 =====================
 DOCKER_IMAGE_TAG="beta"
@@ -117,7 +565,7 @@ get_installed_path() {
 }
 
 # 设置安装路径
-INSTALL_PATH=$(get_installed_path)
+INSTALL_PATH=$(get_install_path)
 
 # 获取平台架构
 get_architecture() {
@@ -146,13 +594,14 @@ ARCH=$(get_architecture)
 check_system_requirements() {
     echo -e "${BLUE_COLOR}正在检查系统要求...${RES}"
     
-    # 检查操作系统
-    if [ "$(id -u)" != "0" ]; then
-        echo -e "${RED_COLOR}错误：需要 root 权限运行此脚本${RES}"
-        echo -e "${YELLOW_COLOR}请使用: sudo ./openlist.sh${RES}"
-        read -r -p "按回车键退出..." < /dev/tty
-        exit 1
-    fi
+    # 检测操作系统
+    detect_os
+    
+    # 检查权限
+    check_permissions
+    
+    # 检查包管理器
+    check_package_manager
     
     # 检查架构
     if [ "$ARCH" == "UNKNOWN" ]; then
@@ -163,15 +612,13 @@ check_system_requirements() {
     fi
     
     # 检查 systemd
-    if ! command -v systemctl >/dev/null 2>&1; then
-        echo -e "${RED_COLOR}错误：系统不支持 systemd${RES}"
-        echo -e "${YELLOW_COLOR}本脚本需要 systemd 支持${RES}"
+    check_systemd
+    
+    # 检查依赖
+    if ! install_dependencies; then
         read -r -p "按回车键退出..." < /dev/tty
         exit 1
     fi
-    
-    # 检查依赖
-    check_dependencies
     
     echo -e "${GREEN_COLOR}系统检查通过！${RES}"
     sleep 1
@@ -189,7 +636,23 @@ show_welcome() {
     echo -e "${RES}"
     echo
     echo -e "${BLUE_COLOR}系统信息：${RES}"
-    echo -e "操作系统: $(cat /etc/os-release | grep PRETTY_NAME | cut -d'"' -f2)"
+    case "$OS_TYPE" in
+        "linux")
+            echo -e "操作系统: $(cat /etc/os-release | grep PRETTY_NAME | cut -d'"' -f2 2>/dev/null || echo "Linux")"
+            ;;
+        "macos")
+            echo -e "操作系统: macOS $(sw_vers -productVersion 2>/dev/null || echo "unknown")"
+            ;;
+        "windows")
+            echo -e "操作系统: Windows (WSL)"
+            ;;
+        "termux")
+            echo -e "操作系统: Android Termux"
+            ;;
+        *)
+            echo -e "操作系统: $OS_TYPE"
+            ;;
+    esac
     echo -e "架构: $(uname -m)"
     echo -e "内核: $(uname -r)"
     echo
@@ -504,30 +967,11 @@ install_openlist() {
     
     # 创建服务
     echo -e "${BLUE_COLOR}创建系统服务...${RES}"
-    cat > /etc/systemd/system/openlist.service << EOF
-[Unit]
-Description=OpenList service
-Wants=network.target
-After=network.target network.service
-
-[Service]
-Type=simple
-WorkingDirectory=$INSTALL_PATH
-ExecStart=$INSTALL_PATH/openlist server
-KillMode=process
-Restart=on-failure
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
-EOF
-    
-    systemctl daemon-reload
-    systemctl enable openlist
+    create_service "$INSTALL_PATH"
     
     # 启动服务
     echo -e "${BLUE_COLOR}启动服务...${RES}"
-    systemctl start openlist
+    start_service
     
     # 等待启动
     sleep 3
@@ -543,7 +987,7 @@ EOF
     echo -e "${RES}"
     
     # 获取IP地址
-    local local_ip=$(ip addr show | grep -w inet | grep -v "127.0.0.1" | awk '{print $2}' | cut -d/ -f1 | head -n1)
+    local local_ip=$(get_local_ip)
     
     echo -e "${BLUE_COLOR}访问信息：${RES}"
     echo -e "本地访问: http://127.0.0.1:5244/"
@@ -636,7 +1080,7 @@ update_openlist() {
     
     # 停止服务
     echo -e "${BLUE_COLOR}停止服务...${RES}"
-    systemctl stop openlist
+    stop_service
     
     # 备份
     echo -e "${BLUE_COLOR}创建备份...${RES}"
@@ -646,7 +1090,7 @@ update_openlist() {
     if ! download_file "$download_url" "/tmp/openlist.tar.gz"; then
         echo -e "${RED_COLOR}下载失败，正在恢复...${RES}"
         mv "/tmp/openlist.bak" "$INSTALL_PATH/openlist"
-        systemctl start openlist
+        start_service
         read -r -p "按回车键继续..." < /dev/tty
         return
     fi
@@ -656,7 +1100,7 @@ update_openlist() {
     if ! tar zxf /tmp/openlist.tar.gz -C "$INSTALL_PATH/"; then
         echo -e "${RED_COLOR}解压失败，正在恢复...${RES}"
         mv "/tmp/openlist.bak" "$INSTALL_PATH/openlist"
-        systemctl start openlist
+        start_service
         rm -f /tmp/openlist.tar.gz
         read -r -p "按回车键继续..." < /dev/tty
         return
@@ -666,7 +1110,7 @@ update_openlist() {
     if [ ! -f "$INSTALL_PATH/openlist" ]; then
         echo -e "${RED_COLOR}更新失败，正在恢复...${RES}"
         mv "/tmp/openlist.bak" "$INSTALL_PATH/openlist"
-        systemctl start openlist
+        start_service
         read -r -p "按回车键继续..." < /dev/tty
         return
     fi
@@ -680,7 +1124,7 @@ update_openlist() {
     
     # 启动服务
     echo -e "${BLUE_COLOR}启动服务...${RES}"
-    systemctl start openlist
+    start_service
     
     # 清理文件
     rm -f /tmp/openlist.tar.gz /tmp/openlist.bak
@@ -723,13 +1167,26 @@ uninstall_openlist() {
     
     # 停止服务
     echo -e "停止服务..."
-    systemctl stop openlist 2>/dev/null
-    systemctl disable openlist 2>/dev/null
+    stop_service 2>/dev/null
     
     # 删除服务文件
     echo -e "删除服务文件..."
-    rm -f /etc/systemd/system/openlist.service
-    systemctl daemon-reload
+    case "$OS_TYPE" in
+        "linux"|"windows")
+            if [[ "$SYSTEMD_AVAILABLE" == "true" ]]; then
+                systemctl disable openlist 2>/dev/null
+                rm -f /etc/systemd/system/openlist.service
+                systemctl daemon-reload
+            fi
+            ;;
+        "macos")
+            launchctl unload /Library/LaunchDaemons/com.openlist.plist 2>/dev/null
+            rm -f /Library/LaunchDaemons/com.openlist.plist
+            ;;
+        "termux")
+            # Termux 不需要删除服务文件
+            ;;
+    esac
     
     # 删除程序文件
     echo -e "删除程序文件..."
@@ -751,7 +1208,7 @@ show_status() {
     echo -e "${RES}"
     
     if [ -f "$INSTALL_PATH/openlist" ]; then
-        if systemctl is-active openlist >/dev/null 2>&1; then
+        if check_service_status; then
             echo -e "${GREEN_COLOR}● OpenList 状态：运行中${RES}"
         else
             echo -e "${RED_COLOR}● OpenList 状态：已停止${RES}"
@@ -776,13 +1233,13 @@ show_status() {
         fi
         
         # 显示网络信息
-        local local_ip=$(ip addr show | grep -w inet | grep -v "127.0.0.1" | awk '{print $2}' | cut -d/ -f1 | head -n1)
+        local local_ip=$(get_local_ip)
         echo -e "${BLUE_COLOR}● 访问地址：${RES}"
         echo -e "  本地访问: http://127.0.0.1:5244/"
         echo -e "  局域网访问: http://${local_ip}:5244/"
         
         # 显示端口状态
-        if ss -tlnp 2>/dev/null | grep -q ":5244"; then
+        if ss -tlnp 2>/dev/null | grep -q ":5244" || netstat -tlnp 2>/dev/null | grep -q ":5244"; then
             echo -e "${GREEN_COLOR}● 端口 5244: 已监听${RES}"
         else
             echo -e "${RED_COLOR}● 端口 5244: 未监听${RES}"
@@ -822,19 +1279,70 @@ show_logs() {
         case "$log_choice" in
             1)
                 echo -e "${BLUE_COLOR}最近 50 条日志：${RES}"
-                journalctl -u openlist --no-pager -n 50
+                get_service_logs
                 ;;
             2)
                 echo -e "${BLUE_COLOR}实时日志（按 Ctrl+C 退出）：${RES}"
-                journalctl -u openlist -f
+                case "$OS_TYPE" in
+                    "linux"|"windows")
+                        if [[ "$SYSTEMD_AVAILABLE" == "true" ]]; then
+                            journalctl -u openlist -f
+                        else
+                            echo -e "${YELLOW_COLOR}无法获取实时日志${RES}"
+                        fi
+                        ;;
+                    "macos")
+                        log stream --predicate 'process == "openlist"'
+                        ;;
+                    "termux")
+                        if [[ -f "$INSTALL_PATH/openlist.log" ]]; then
+                            tail -f "$INSTALL_PATH/openlist.log"
+                        else
+                            echo -e "${YELLOW_COLOR}未找到日志文件${RES}"
+                        fi
+                        ;;
+                esac
                 ;;
             3)
                 echo -e "${BLUE_COLOR}错误日志：${RES}"
-                journalctl -u openlist --no-pager -p err
+                case "$OS_TYPE" in
+                    "linux"|"windows")
+                        if [[ "$SYSTEMD_AVAILABLE" == "true" ]]; then
+                            journalctl -u openlist --no-pager -p err
+                        else
+                            echo -e "${YELLOW_COLOR}无法获取错误日志${RES}"
+                        fi
+                        ;;
+                    "macos")
+                        log show --predicate 'process == "openlist" AND messageType == 16' --last 1h
+                        ;;
+                    "termux")
+                        if [[ -f "$INSTALL_PATH/openlist.log" ]]; then
+                            grep -i error "$INSTALL_PATH/openlist.log" | tail -20
+                        else
+                            echo -e "${YELLOW_COLOR}未找到日志文件${RES}"
+                        fi
+                        ;;
+                esac
                 ;;
             4)
                 echo -e "${BLUE_COLOR}查找初始密码：${RES}"
-                local password=$(journalctl -u openlist --no-pager | grep -i "initial password is:" | tail -1 | sed 's/.*initial password is: //')
+                local password=""
+                case "$OS_TYPE" in
+                    "linux"|"windows")
+                        if [[ "$SYSTEMD_AVAILABLE" == "true" ]]; then
+                            password=$(journalctl -u openlist --no-pager | grep -i "initial password is:" | tail -1 | sed 's/.*initial password is: //')
+                        fi
+                        ;;
+                    "macos")
+                        password=$(log show --predicate 'process == "openlist"' --last 1h | grep -i "initial password is:" | tail -1 | sed 's/.*initial password is: //')
+                        ;;
+                    "termux")
+                        if [[ -f "$INSTALL_PATH/openlist.log" ]]; then
+                            password=$(grep -i "initial password is:" "$INSTALL_PATH/openlist.log" | tail -1 | sed 's/.*initial password is: //')
+                        fi
+                        ;;
+                esac
                 if [ ! -z "$password" ]; then
                     echo -e "${GREEN_COLOR}初始密码：$password${RES}"
                 else
@@ -937,7 +1445,7 @@ reset_password() {
     echo -e "${BLUE_COLOR}正在重置密码...${RES}"
     
     # 停止服务
-    systemctl stop openlist
+    stop_service
     
     # 备份数据库
     if [ -f "$INSTALL_PATH/data/data.db" ]; then
@@ -948,13 +1456,28 @@ reset_password() {
     rm -f "$INSTALL_PATH/data/data.db"*
     
     # 启动服务
-    systemctl start openlist
+    start_service
     
     # 等待服务启动
     sleep 5
     
     # 获取新密码
-    local new_password=$(journalctl -u openlist --since "1 minute ago" | grep -i "initial password is:" | tail -1 | sed 's/.*initial password is: //')
+    local new_password=""
+    case "$OS_TYPE" in
+        "linux"|"windows")
+            if [[ "$SYSTEMD_AVAILABLE" == "true" ]]; then
+                new_password=$(journalctl -u openlist --since "1 minute ago" | grep -i "initial password is:" | tail -1 | sed 's/.*initial password is: //')
+            fi
+            ;;
+        "macos")
+            new_password=$(log show --predicate 'process == "openlist"' --last 1m | grep -i "initial password is:" | tail -1 | sed 's/.*initial password is: //')
+            ;;
+        "termux")
+            if [[ -f "$INSTALL_PATH/openlist.log" ]]; then
+                new_password=$(grep -i "initial password is:" "$INSTALL_PATH/openlist.log" | tail -1 | sed 's/.*initial password is: //')
+            fi
+            ;;
+    esac
     
     if [ ! -z "$new_password" ]; then
         echo -e "${GREEN_COLOR}密码重置成功${RES}"
@@ -1055,15 +1578,17 @@ control_service() {
     case "$action" in
         start)
             echo -e "${BLUE_COLOR}正在启动 OpenList 服务...${RES}"
-            systemctl start openlist
+            start_service
             ;;
         stop)
             echo -e "${BLUE_COLOR}正在停止 OpenList 服务...${RES}"
-            systemctl stop openlist
+            stop_service
             ;;
         restart)
             echo -e "${BLUE_COLOR}正在重启 OpenList 服务...${RES}"
-            systemctl restart openlist
+            stop_service
+            sleep 2
+            start_service
             ;;
         *)
             echo -e "${RED_COLOR}无效的操作${RES}"
@@ -1076,7 +1601,7 @@ control_service() {
     sleep 2
     
     # 检查服务状态
-    if systemctl is-active openlist >/dev/null 2>&1; then
+    if check_service_status; then
         echo -e "${GREEN_COLOR}OpenList 服务已成功${action_desc}${RES}"
     else
         echo -e "${RED_COLOR}OpenList 服务${action_desc}失败${RES}"
@@ -1116,8 +1641,19 @@ migrate_alist_data() {
         [yY])
             # 停止两个服务
             echo -e "${BLUE_COLOR}停止服务...${RES}"
-            systemctl stop alist
-            systemctl stop openlist
+            case "$OS_TYPE" in
+                "linux")
+                    if [[ "$SYSTEMD_AVAILABLE" == "true" ]]; then
+                        systemctl stop alist 2>/dev/null
+                    else
+                        echo -e "${YELLOW_COLOR}请手动停止 Alist 服务${RES}"
+                    fi
+                    ;;
+                *)
+                    echo -e "${YELLOW_COLOR}请手动停止 Alist 服务${RES}"
+                    ;;
+            esac
+            stop_service
             
             # 备份 OpenList 数据
             echo -e "${BLUE_COLOR}备份 OpenList 数据...${RES}"
@@ -1150,7 +1686,7 @@ migrate_alist_data() {
             
             # 启动 OpenList
             echo -e "${BLUE_COLOR}启动 OpenList 服务...${RES}"
-            systemctl start openlist
+            start_service
             
             echo -e "${GREEN_COLOR}数据迁移完成${RES}"
             echo -e "${YELLOW_COLOR}请检查 OpenList 是否正常运行${RES}"
@@ -1337,6 +1873,134 @@ is_openlist_docker_installed() {
     fi
 }
 
+# 检查 OpenList 二进制文件是否已下载
+is_openlist_binary_downloaded() {
+    if [ -f "$INSTALL_PATH/openlist" ]; then
+        echo -e "${GREEN_COLOR}OpenList 二进制文件已下载${RES}"
+        return 0
+    else
+        echo -e "${YELLOW_COLOR}OpenList 二进制文件未下载${RES}"
+        return 1
+    fi
+}
+
+# 检查 OpenList 服务是否正在运行
+is_openlist_service_running() {
+    if check_service_status; then
+        echo -e "${GREEN_COLOR}OpenList 服务正在运行${RES}"
+        return 0
+    else
+        echo -e "${YELLOW_COLOR}OpenList 服务未运行${RES}"
+        return 1
+    fi
+}
+
+# 检查 Nginx 是否已安装
+is_nginx_installed() {
+    if command -v nginx >/dev/null 2>&1; then
+        echo -e "${GREEN_COLOR}Nginx 已安装${RES}"
+        return 0
+    else
+        echo -e "${YELLOW_COLOR}Nginx 未安装${RES}"
+        return 1
+    fi
+}
+
+# 获取本机公网IP
+get_local_ip() {
+    curl -s https://api.ipify.org || hostname -I | awk '{print $1}'
+}
+
+# 一键安装 Nginx
+nginx_check_and_install() {
+    if command -v nginx >/dev/null 2>&1; then
+        echo -e "${GREEN_COLOR}Nginx 已安装${RES}"
+        return 0
+    fi
+    echo -e "${YELLOW_COLOR}Nginx 未安装，是否一键安装？${RES}"
+    read -r -p "安装 Nginx？[Y/n]: " confirm < /dev/tty
+    case "${confirm:-y}" in
+        [yY]|"")
+            if [ -f /etc/os-release ]; then
+                . /etc/os-release
+                if [[ $ID == "ubuntu" || $ID == "debian" ]]; then
+                    apt update && apt install -y nginx || handle_error 1 "Nginx 安装失败"
+                elif [[ $ID == "centos" || $ID == "rhel" ]]; then
+                    yum install -y nginx || handle_error 1 "Nginx 安装失败"
+                else
+                    echo -e "${RED_COLOR}不支持的系统，请手动安装 Nginx${RES}"
+                    return 1
+                fi
+            fi
+            systemctl enable nginx && systemctl start nginx
+            echo -e "${GREEN_COLOR}Nginx 安装完成${RES}"
+            ;;
+        *)
+            echo -e "${YELLOW_COLOR}已取消安装 Nginx${RES}"
+            return 1
+            ;;
+    esac
+}
+
+# 配置 Nginx 反向代理
+setup_nginx_proxy() {
+    nginx_check_and_install || return
+    read -r -p "请输入要绑定的域名: " domain < /dev/tty
+    if [ -z "$domain" ]; then
+        echo -e "${RED_COLOR}域名不能为空${RES}"
+        return
+    fi
+    # 生成 Nginx 配置
+    local conf_path="/etc/nginx/conf.d/openlist_${domain}.conf"
+    cat > "$conf_path" <<EOF
+server {
+    listen 80;
+    server_name $domain;
+    location / {
+        proxy_pass http://127.0.0.1:5244;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+}
+EOF
+    nginx -t && systemctl reload nginx
+    echo -e "${GREEN_COLOR}Nginx 反向代理配置已生成并重载${RES}"
+    local ip=$(get_local_ip)
+    echo -e "${YELLOW_COLOR}请在域名服务商处将 $domain 的A记录指向本机IP: $ip${RES}"
+    echo -e "配置完成后可通过 http://$domain 访问 OpenList"
+    read -r -p "按回车键返回菜单..." < /dev/tty
+}
+
+# 域名绑定/反代菜单
+show_domain_proxy_menu() {
+    while true; do
+        clear
+        echo -e "${CYAN_COLOR}"
+        echo "╔══════════════════════════════════════════════════════════════╗"
+        echo "║                域名绑定与 Nginx 反向代理设置                 ║"
+        echo "╚══════════════════════════════════════════════════════════════╝"
+        echo -e "${RES}"
+        echo -e "${GREEN_COLOR}1${RES} - 一键配置域名反向代理"
+        echo -e "${GREEN_COLOR}0${RES} - 返回主菜单"
+        echo
+        read -r -p "请输入选项 [0-1]: " choice < /dev/tty
+        case "$choice" in
+            1)
+                setup_nginx_proxy
+                ;;
+            0)
+                return
+                ;;
+            *)
+                echo -e "${RED_COLOR}无效选项，请重新选择${RES}"
+                sleep 1
+                ;;
+        esac
+    done
+}
+
 # 主菜单
 show_main_menu() {
     while true; do
@@ -1349,45 +2013,25 @@ show_main_menu() {
         echo "╚══════════════════════════════════════════════════════════════╝"
         echo -e "${RES}"
 
+        # 关键组件状态
+        is_openlist_binary_downloaded
+        is_openlist_service_running
+        is_docker_installed
+        is_openlist_docker_installed
+        is_nginx_installed
+        show_domain_bind_status
+        echo
         # 推荐安装方式
         echo -e "${BLUE_COLOR}推荐安装方式：${RES}"
-        echo -e "  1. ${GREEN_COLOR}二进制文件安装（适合大多数用户，兼容性好）${RES}"
+        echo -e "  1. ${GREEN_COLOR}二进制文件服务模式（适合大多数用户，兼容性好）${RES}"
         echo -e "  2. ${GREEN_COLOR}Docker 安装（适合有 Docker 环境的用户，隔离性强）${RES}"
         echo
-        # 显示 Docker 是否已安装
-        is_docker_installed
-        # 显示 OpenList Docker 容器是否已安装
-        is_openlist_docker_installed
-        echo
-        # 显示状态
-        if [ -f "$INSTALL_PATH/openlist" ]; then
-            if systemctl is-active openlist >/dev/null 2>&1; then
-                echo -e "${GREEN_COLOR}● OpenList 状态：运行中${RES}"
-            else
-                echo -e "${RED_COLOR}● OpenList 状态：已停止${RES}"
-            fi
-            
-            # 显示版本信息
-            if [ -f "$VERSION_FILE" ]; then
-                local version=$(head -n1 "$VERSION_FILE" 2>/dev/null)
-                local install_time=$(tail -n1 "$VERSION_FILE" 2>/dev/null)
-                echo -e "${BLUE_COLOR}● 当前版本：${RES}$version"
-                echo -e "${BLUE_COLOR}● 安装时间：${RES}$install_time"
-            else
-                echo -e "${YELLOW_COLOR}● 版本信息：未知${RES}"
-            fi
-        else
-            echo -e "${YELLOW_COLOR}● OpenList 状态：未安装${RES}"
-        fi
-        
-        echo
-        echo -e "${PURPLE_COLOR}═══ 基本操作 ═══${RES}"
+
+        echo -e "${PURPLE_COLOR}═══ 二进制文件服务模式 ═══${RES}"
         echo -e "${GREEN_COLOR}1${RES}  - 安装 OpenList"
         echo -e "${GREEN_COLOR}2${RES}  - 更新 OpenList"
         echo -e "${GREEN_COLOR}3${RES}  - 卸载 OpenList"
         echo -e "${GREEN_COLOR}4${RES}  - 迁移 Alist 数据到 OpenList"
-        echo
-        echo -e "${PURPLE_COLOR}═══ 服务管理 ═══${RES}"
         echo -e "${GREEN_COLOR}5${RES}  - 启动服务"
         echo -e "${GREEN_COLOR}6${RES}  - 停止服务"
         echo -e "${GREEN_COLOR}7${RES}  - 重启服务"
@@ -1395,108 +2039,170 @@ show_main_menu() {
         echo -e "${GREEN_COLOR}9${RES}  - 查看日志"
         echo
         echo -e "${PURPLE_COLOR}═══ Docker 管理 ═══${RES}"
-        echo -e "${GREEN_COLOR}11${RES} - Docker 一键安装/启动 OpenList"
-        echo -e "${GREEN_COLOR}12${RES} - 进入 OpenList 容器"
-        echo -e "${GREEN_COLOR}13${RES} - 容器内设置管理员密码"
-        echo -e "${GREEN_COLOR}14${RES} - 重启 OpenList 容器"
-        echo -e "${GREEN_COLOR}15${RES} - 查看容器状态"
-        echo -e "${GREEN_COLOR}16${RES} - 查看容器日志"
+        echo -e "${GREEN_COLOR}10${RES} - Docker 一键安装/启动 OpenList"
+        echo -e "${GREEN_COLOR}11${RES} - 进入 OpenList 容器"
+        echo -e "${GREEN_COLOR}12${RES} - 容器内设置管理员密码"
+        echo -e "${GREEN_COLOR}13${RES} - 重启 OpenList 容器"
+        echo -e "${GREEN_COLOR}14${RES} - 查看容器状态"
+        echo -e "${GREEN_COLOR}15${RES} - 查看容器日志"
+        echo
+        echo -e "${PURPLE_COLOR}═══ 域名绑定/反向代理 ═══${RES}"
+        echo -e "${GREEN_COLOR}16${RES} - 域名绑定/反代设置"
+        echo
+        echo -e "${PURPLE_COLOR}═══ 定时自动更新 ═══${RES}"
+        echo -e "${GREEN_COLOR}17${RES} - 定时自动更新设置"
         echo
         echo -e "${GREEN_COLOR}0${RES}  - 退出脚本"
         echo
-        
-        # 强制从终端读取输入，以解决在特殊环境下（如通过管道或在某些 shell 中执行）的输入问题
-        read -p "请输入选项 [0-16]: " -r choice < /dev/tty
-        
-        # 添加调试信息
+        read -p "请输入选项 [0-17]: " -r choice < /dev/tty
         echo -e "${YELLOW_COLOR}[调试] 输入的选项: '$choice'${RES}"
-        
-        # 检查输入是否为空
         if [ -z "$choice" ]; then
-            echo -e "${RED_COLOR}请输入有效的选项 [0-16]${RES}"
+            echo -e "${RED_COLOR}请输入有效的选项 [0-17]${RES}"
             sleep 2
             continue
         fi
-        
-        # 检查输入是否为数字
         if ! [[ "$choice" =~ ^[0-9]+$ ]]; then
-            echo -e "${RED_COLOR}请输入数字选项 [0-16]${RES}"
+            echo -e "${RED_COLOR}请输入数字选项 [0-17]${RES}"
             sleep 2
             continue
         fi
-        
         case "$choice" in
-            1) 
-                echo -e "${YELLOW_COLOR}[调试] 执行: install_openlist${RES}"
-                check_disk_space && install_openlist
+            1) check_disk_space && install_openlist ;;
+            2) check_disk_space && update_openlist ;;
+            3) uninstall_openlist ;;
+            4) check_disk_space && migrate_alist_data ;;
+            5) control_service start "启动" ;;
+            6) control_service stop "停止" ;;
+            7) control_service restart "重启" ;;
+            8) show_status ;;
+            9) show_logs ;;
+            10) install_openlist_docker ;;
+            11) exec_openlist_docker ;;
+            12) set_password_openlist_docker ;;
+            13) restart_openlist_docker ;;
+            14) status_openlist_docker ;;
+            15) logs_openlist_docker ;;
+            16) show_domain_proxy_menu ;;
+            17) show_auto_update_menu ;;
+            0) echo -e "${GREEN_COLOR}谢谢使用！${RES}"; exit 0 ;;
+            *) echo -e "${RED_COLOR}无效选项，请重新选择${RES}"; echo -e "${YELLOW_COLOR}[调试] 无效选项: '$choice'${RES}"; sleep 2 ;;
+        esac
+    done
+}
+
+# 定时自动更新相关函数
+CRON_MARK_BIN='# OpenList二进制自动更新'
+CRON_MARK_DOCKER='# OpenList Docker自动更新'
+
+setup_cron_update() {
+    local mode=$1
+    local schedule=$2
+    local cmd
+    if [ "$mode" = "bin" ]; then
+        cmd="curl -fsSL \"https://raw.githubusercontent.com/ypq123456789/openlist/refs/heads/main/openlist.sh\" | sudo bash -s update"
+        mark="$CRON_MARK_BIN"
+    else
+        cmd="curl -fsSL \"https://raw.githubusercontent.com/ypq123456789/openlist/refs/heads/main/openlist.sh\" | sudo bash -s docker_update"
+        mark="$CRON_MARK_DOCKER"
+    fi
+    (crontab -l 2>/dev/null | grep -v "$mark"; echo "$schedule $cmd $mark") | crontab -
+    echo -e "${GREEN_COLOR}定时自动更新任务已设置：$schedule${RES}"
+}
+
+remove_cron_update() {
+    local mark=$1
+    crontab -l 2>/dev/null | grep -v "$mark" | crontab -
+    echo -e "${YELLOW_COLOR}已取消对应的定时自动更新任务${RES}"
+}
+
+show_cron_update_status() {
+    echo -e "${BLUE_COLOR}当前定时自动更新任务：${RES}"
+    crontab -l 2>/dev/null | grep -E "$CRON_MARK_BIN|$CRON_MARK_DOCKER" && return
+    echo -e "${YELLOW_COLOR}未设置任何自动更新任务${RES}"
+}
+
+show_auto_update_menu() {
+    while true; do
+        clear
+        echo -e "${CYAN_COLOR}"
+        echo "╔══════════════════════════════════════════════════════════════╗"
+        echo "║                  定时自动更新设置                            ║"
+        echo "╚══════════════════════════════════════════════════════════════╝"
+        echo -e "${RES}"
+        echo -e "${BLUE_COLOR}请选择自动更新模式：${RES}"
+        echo -e "${GREEN_COLOR}1${RES} - 二进制文件服务模式自动更新"
+        echo -e "${GREEN_COLOR}2${RES} - Docker 模式自动更新"
+        echo -e "${GREEN_COLOR}3${RES} - 查看当前定时任务"
+        echo -e "${GREEN_COLOR}4${RES} - 取消二进制自动更新"
+        echo -e "${GREEN_COLOR}5${RES} - 取消 Docker 自动更新"
+        echo -e "${GREEN_COLOR}0${RES} - 返回主菜单"
+        echo
+        read -r -p "请输入选项 [0-5]: " choice < /dev/tty
+        case "$choice" in
+            1|2)
+                local mode="bin"
+                [ "$choice" = "2" ] && mode="docker"
+                echo -e "${BLUE_COLOR}请选择更新频率：${RES}"
+                echo -e "${GREEN_COLOR}1${RES} - 每小时更新"
+                echo -e "${GREEN_COLOR}2${RES} - 每3小时更新"
+                echo -e "${GREEN_COLOR}3${RES} - 每天更新"
+                echo -e "${GREEN_COLOR}4${RES} - 每周更新"
+                echo -e "${GREEN_COLOR}5${RES} - 自定义 crontab 表达式"
+                read -r -p "请选择 [1-5]: " freq < /dev/tty
+                local schedule
+                case "$freq" in
+                    1) schedule="0 * * * *";;
+                    2) schedule="0 */3 * * *";;
+                    3) schedule="0 3 * * *";;
+                    4) schedule="0 3 * * 0";;
+                    5)
+                        read -r -p "请输入自定义 crontab 时间表达式: " schedule < /dev/tty
+                        ;;
+                    *)
+                        echo -e "${RED_COLOR}无效选项${RES}"
+                        continue
+                        ;;
+                esac
+                setup_cron_update "$mode" "$schedule"
+                read -r -p "按回车键返回菜单..." < /dev/tty
                 ;;
-            2) 
-                echo -e "${YELLOW_COLOR}[调试] 执行: update_openlist${RES}"
-                check_disk_space && update_openlist
+            3)
+                show_cron_update_status
+                read -r -p "按回车键返回菜单..." < /dev/tty
                 ;;
-            3) 
-                echo -e "${YELLOW_COLOR}[调试] 执行: uninstall_openlist${RES}"
-                uninstall_openlist
+            4)
+                remove_cron_update "$CRON_MARK_BIN"
+                read -r -p "按回车键返回菜单..." < /dev/tty
                 ;;
-            4) 
-                echo -e "${YELLOW_COLOR}[调试] 执行: migrate_alist_data${RES}"
-                check_disk_space && migrate_alist_data
+            5)
+                remove_cron_update "$CRON_MARK_DOCKER"
+                read -r -p "按回车键返回菜单..." < /dev/tty
                 ;;
-            5) 
-                echo -e "${YELLOW_COLOR}[调试] 执行: control_service start${RES}"
-                control_service start "启动"
+            0)
+                return
                 ;;
-            6) 
-                echo -e "${YELLOW_COLOR}[调试] 执行: control_service stop${RES}"
-                control_service stop "停止"
-                ;;
-            7) 
-                echo -e "${YELLOW_COLOR}[调试] 执行: control_service restart${RES}"
-                control_service restart "重启"
-                ;;
-            8) 
-                echo -e "${YELLOW_COLOR}[调试] 执行: show_status${RES}"
-                show_status
-                ;;
-            9) 
-                echo -e "${YELLOW_COLOR}[调试] 执行: show_logs${RES}"
-                show_logs
-                ;;
-            11)
-                echo -e "${YELLOW_COLOR}[调试] 执行: install_openlist_docker${RES}"
-                install_openlist_docker
-                ;;
-            12)
-                echo -e "${YELLOW_COLOR}[调试] 执行: exec_openlist_docker${RES}"
-                exec_openlist_docker
-                ;;
-            13)
-                echo -e "${YELLOW_COLOR}[调试] 执行: set_password_openlist_docker${RES}"
-                set_password_openlist_docker
-                ;;
-            14)
-                echo -e "${YELLOW_COLOR}[调试] 执行: restart_openlist_docker${RES}"
-                restart_openlist_docker
-                ;;
-            15)
-                echo -e "${YELLOW_COLOR}[调试] 执行: status_openlist_docker${RES}"
-                status_openlist_docker
-                ;;
-            16)
-                echo -e "${YELLOW_COLOR}[调试] 执行: logs_openlist_docker${RES}"
-                logs_openlist_docker
-                ;;
-            0) 
-                echo -e "${GREEN_COLOR}谢谢使用！${RES}"
-                exit 0
-                ;;
-            *) 
-                echo -e "${RED_COLOR}无效选项，请重新选择${RES}"
-                echo -e "${YELLOW_COLOR}[调试] 无效选项: '$choice'${RES}"
-                sleep 2
+            *)
+                echo -e "${RED_COLOR}无效选项${RES}"
+                sleep 1
                 ;;
         esac
     done
+}
+
+show_domain_bind_status() {
+    local conf_dir="/etc/nginx/conf.d"
+    local domain_files=$(ls $conf_dir/openlist_*.conf 2>/dev/null)
+    if [ -z "$domain_files" ]; then
+        echo -e "${YELLOW_COLOR}域名绑定状态：未绑定域名${RES}"
+    else
+        local domains=""
+        for f in $domain_files; do
+            local d=$(grep -Eo 'server_name[ ]+[^;]+' "$f" | awk '{print $2}')
+            [ -n "$d" ] && domains+="$d, "
+        done
+        domains=${domains%, }
+        echo -e "${GREEN_COLOR}域名绑定状态：已绑定域名：$domains${RES}"
+    fi
 }
 
 # 主程序入口
@@ -1509,3 +2215,4 @@ main() {
 
 # 执行主程序
 main "$@"
+
