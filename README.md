@@ -7,7 +7,7 @@
 运行以下命令即可完成 OpenList 管理脚本的安装或更新。此命令会自动下载最新版本的脚本，并将其安装为系统级的 `openlist` 命令。
 
 ```bash
-sudo curl -fsSL "https://raw.githubusercontent.com/ypq123456789/openlist/refs/heads/main/onelist.sh" -o /usr/local/bin/openlist && sudo chmod +x /usr/local/bin/openlist && openlist
+sudo curl -fsSL "https://raw.githubusercontent.com/ypq123456789/openlist-manger/refs/heads/main/openlist.sh" -o /usr/local/bin/openlist && sudo chmod +x /usr/local/bin/openlist && openlist
 ```
 
 > 该命令会执行以下操作：
