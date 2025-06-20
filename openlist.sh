@@ -3,195 +3,31 @@
 #
 # OpenList Interactive Manager Script
 #
-# Version: 1.5.8
-# Last Updated: 2025-06-20
+# Version: 1.6.0
+# Last Updated: 2025-06-21
 #
-# Description: 
+# Description:
 #   An interactive management script for OpenList
 #   Cross-platform support: Linux, Windows (WSL), macOS, Android Termux
-#   Download first, then execute - no direct pipe installation
 #
 # Requirements:
 #   - Linux with systemd (or compatible systems)
-#   - Root privileges for installation (or appropriate permissions)
+#   - Root privileges for most operations
 #   - curl, tar
-#   - x86_64 or arm64 architecture
 #
-# Supported Platforms:
-#   - Linux (Ubuntu, Debian, CentOS, etc.)
-#   - Windows (WSL/WSL2)
-#   - macOS
-#   - Android Termux
+# Installation:
+#   sudo curl -fsSL "https://raw.githubusercontent.com/ypq123456789/openlist/refs/heads/main/onelist.sh" -o /usr/local/bin/openlist && sudo chmod +x /usr/local/bin/openlist && openlist
 #
 # Usage:
-#   curl -fsSL "https://raw.githubusercontent.com/ypq123456789/openlist/refs/heads/main/openlist.sh" -o openlist.sh
-#   chmod +x openlist.sh
-#   sudo ./openlist.sh  # Linux/macOS
-#   ./openlist.sh       # Termux
+#   openlist
 #
 ###############################################################################
-
-# ===================== 自安装功能 =====================
-
-# 自动安装到系统PATH
-install_to_system_path() {
-    # 检查是否已经在系统PATH中
-    if [[ "$0" == "/usr/local/bin/openlist" ]]; then
-        # 如果当前脚本就是/usr/local/bin/openlist，检查是否需要更新
-        check_and_update_openlist_command
-        return 0
-    fi
-    
-    # 检查是否通过管道执行（curl | bash）
-    if [[ "$0" == "/dev/fd/"* ]] || [[ "$0" == "/proc/self/fd/"* ]]; then
-        echo -e "${BLUE_COLOR}检测到通过管道执行，正在安装到系统PATH...${RES}"
-    else
-        # 检查是否在系统PATH中
-        local script_path=$(which openlist 2>/dev/null)
-        if [[ -n "$script_path" ]] && [[ "$script_path" == "/usr/local/bin/openlist" ]]; then
-            # 检查是否需要更新openlist命令
-            check_and_update_openlist_command
-            return 0
-        fi
-        
-        echo -e "${BLUE_COLOR}检测到本地执行，正在安装到系统PATH...${RES}"
-    fi
-    
-    # 检查是否有root权限
-    if [[ "$(id -u)" != "0" ]]; then
-        echo -e "${RED_COLOR}需要root权限来安装到系统PATH${RES}"
-        echo -e "${YELLOW_COLOR}请使用: sudo $0${RES}"
-        exit 1
-    fi
-    
-    # 创建简单的openlist命令
-    create_openlist_command
-    
-    echo -e "${GREEN_COLOR}安装成功！现在可以在任何地方使用 'openlist' 命令${RES}"
-    echo -e "${YELLOW_COLOR}重新执行: openlist${RES}"
-    exec "/usr/local/bin/openlist" "$@"
-}
-
-# 检查并更新openlist命令
-check_and_update_openlist_command() {
-    if [[ "$(id -u)" != "0" ]]; then
-        return 0
-    fi
-    
-    echo -e "${BLUE_COLOR}检查openlist命令版本...${RES}"
-    
-    # 获取远程最新版本
-    local remote_version=$(curl -s "https://raw.githubusercontent.com/ypq123456789/openlist/refs/heads/main/onelist.sh" | grep "MANAGER_VERSION=" | head -1 | cut -d'"' -f2 2>/dev/null)
-    
-    if [[ -z "$remote_version" ]]; then
-        echo -e "${YELLOW_COLOR}无法获取远程版本信息${RES}"
-        return 0
-    fi
-    
-    # 获取当前版本
-    local current_version="$MANAGER_VERSION"
-    
-    # 比较版本
-    if [[ "$remote_version" != "$current_version" ]]; then
-        echo -e "${YELLOW_COLOR}发现新版本: $remote_version (当前: $current_version)${RES}"
-        echo -e "${BLUE_COLOR}正在更新openlist命令...${RES}"
-        
-        # 更新openlist命令
-        create_openlist_command
-        echo -e "${GREEN_COLOR}openlist命令更新成功！${RES}"
-    else
-        echo -e "${GREEN_COLOR}openlist命令已是最新版本${RES}"
-    fi
-}
-
-# 创建openlist命令
-create_openlist_command() {
-    # 检查当前目录是否有openlist文件
-    if [[ -f "./openlist" ]]; then
-        # 复制本地的openlist文件
-        cp "./openlist" "/usr/local/bin/openlist"
-        echo -e "${GREEN_COLOR}使用本地openlist文件${RES}"
-    else
-        echo -e "${RED_COLOR}错误：未找到本地openlist文件${RES}"
-        echo -e "${YELLOW_COLOR}请确保openlist文件与onelist.sh在同一目录${RES}"
-        exit 1
-    fi
-
-    # 设置执行权限
-    chmod +x "/usr/local/bin/openlist"
-}
-
-# 在脚本开始时执行自安装检查
-install_to_system_path
-
-# ===================== 自动更新检查 =====================
-
-# 检查脚本更新
-check_script_update() {
-    # 如果脚本不在系统PATH中，跳过更新检查
-    if [[ "$0" != "/usr/local/bin/openlist" ]]; then
-        return 0
-    fi
-    
-    # 检查是否有root权限
-    if [[ "$(id -u)" != "0" ]]; then
-        return 0
-    fi
-    
-    echo -e "${BLUE_COLOR}检查脚本更新...${RES}"
-    
-    # 获取远程脚本的最新版本信息
-    local remote_version=$(curl -s "https://raw.githubusercontent.com/ypq123456789/openlist/refs/heads/main/openlist.sh" | grep "MANAGER_VERSION=" | head -1 | cut -d'"' -f2 2>/dev/null)
-    
-    if [[ -z "$remote_version" ]]; then
-        echo -e "${YELLOW_COLOR}无法获取远程版本信息${RES}"
-        return 0
-    fi
-    
-    # 比较版本
-    if [[ "$remote_version" != "$MANAGER_VERSION" ]]; then
-        echo -e "${YELLOW_COLOR}发现新版本: $remote_version (当前: $MANAGER_VERSION)${RES}"
-        echo -e "${BLUE_COLOR}正在自动更新脚本...${RES}"
-        
-        # 下载最新版本
-        local temp_script="/tmp/openlist_update_$$.sh"
-        if curl -fsSL "https://raw.githubusercontent.com/ypq123456789/openlist/refs/heads/main/openlist.sh" -o "$temp_script"; then
-            # 验证下载的脚本
-            if [[ -f "$temp_script" ]] && [[ -s "$temp_script" ]]; then
-                # 备份当前版本
-                cp "/usr/local/bin/openlist" "/usr/local/bin/openlist.backup.$(date +%Y%m%d_%H%M%S)"
-                
-                # 更新脚本
-                if cp "$temp_script" "/usr/local/bin/openlist"; then
-                    chmod +x "/usr/local/bin/openlist"
-                    rm -f "$temp_script"
-                    echo -e "${GREEN_COLOR}脚本更新成功！${RES}"
-                    echo -e "${YELLOW_COLOR}重新执行最新版本...${RES}"
-                    exec "/usr/local/bin/openlist" "$@"
-                else
-                    echo -e "${RED_COLOR}更新失败，保留原版本${RES}"
-                    rm -f "$temp_script"
-                fi
-            else
-                echo -e "${RED_COLOR}下载的脚本无效，保留原版本${RES}"
-                rm -f "$temp_script"
-            fi
-        else
-            echo -e "${RED_COLOR}下载更新失败，保留原版本${RES}"
-        fi
-    else
-        echo -e "${GREEN_COLOR}脚本已是最新版本${RES}"
-    fi
-}
-
-# 执行自动更新检查
-check_script_update
 
 # 配置部分
 GITHUB_REPO="OpenListTeam/OpenList"
 VERSION_TAG="beta"
 VERSION_FILE="/opt/openlist/.version"
-MANAGER_VERSION="1.5.8"  # 更新管理器版本号
+MANAGER_VERSION="1.6.0"  # 更新管理器版本号
 
 # 颜色配置
 RED_COLOR='\e[1;31m'
