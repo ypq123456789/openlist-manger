@@ -2,14 +2,14 @@
 
 一个功能强大且用户友好的 OpenList 交互式管理脚本，旨在简化 OpenList 的安装、配置和日常维护任务。
 
-[![版本](https://img.shields.io/badge/版本-v1.5.0-blue.svg)](onelist.sh)
+[![版本](https://img.shields.io/badge/版本-v1.5.4-blue.svg)](onelist.sh)
 
 ## 环境检测与推荐
 
 - 脚本启动后会自动检测：
   - **Docker 是否已安装**
   - **OpenList Docker 容器是否已安装**（只要有官方4个镜像的容器即视为已安装）
-  - **域名绑定状态**（主界面会自动检测并显示当前已绑定的域名，如未绑定则提示“未绑定域名”）
+  - **域名绑定状态**（主界面会自动检测并显示当前已绑定的域名，如未绑定则提示"未绑定域名"）
 - 主菜单顶部会醒目推荐：
   - **二进制文件安装**（适合大多数用户，兼容性好）
   - **Docker 安装**（适合有 Docker 环境的用户，隔离性强）
@@ -26,15 +26,16 @@
 - **强大的日志系统**：支持查看实时日志、历史日志、错误日志，并能快速定位初始密码。
 - **灵活的密码管理**：支持随机生成密码或手动设置新的管理员密码。
 - **数据迁移**：提供从 Alist 无缝迁移数据到 OpenList 的功能。
-- **系统兼容性**：支持 x86_64 和 aarch64 架构，并在主流 Linux 发行版（如 Ubuntu, Debian, CentOS）上经过测试。
+- **系统兼容性**：支持 x86_64 和 aarch64 架构，全面兼容主流 Linux 发行版（如 Ubuntu, Debian, CentOS）、macOS、Windows（WSL）、Android Termux，服务管理、数据迁移、密码重置等操作会自动适配不同平台。
 - **智能依赖检查**：自动检查并提示安装 `curl` 和 `tar` 等必要依赖。
 - **Docker 一键管理**：支持通过 Docker 镜像一键安装、启动、进入容器、设置密码、重启、查看日志和状态，并可选择官方多种镜像标签。
 - **域名绑定与反向代理**：支持一键检测/安装 Nginx，自动生成反代配置，提示域名A记录指向本机IP。
 - **定时自动更新**：支持二进制服务和 Docker 两种模式，提供常用定时选项和自定义 crontab，支持一键取消和查看当前任务。
+- **脚本自动更新**：脚本会自动检查并更新到最新版本，确保用户始终使用最新功能。
 
 ## 系统要求
 
-- 操作系统：支持 systemd 的主流 Linux 发行版 (如 Ubuntu, Debian, CentOS 等)
+- 操作系统：支持 systemd 的主流 Linux 发行版 (如 Ubuntu, Debian, CentOS 等)，并兼容 macOS、Windows（WSL）、Android Termux（部分功能如服务管理需手动操作）
 - 用户权限：需要 `root` 权限来执行安装和服务管理等操作。
 - 必要命令：`curl` 和 `tar`。
 - 系统架构：`x86_64 (amd64)` 或 `aarch64 (arm64)`。
@@ -42,15 +43,15 @@
 
 ## 使用方法
 
+> **注意：** 脚本首次执行需要root权限，会自动安装到 `/usr/local/bin/` 目录，之后可在任何地方直接执行 `openlist` 命令调用脚本。脚本会自动检查并更新到最新版本。
+
 ### 推荐：一键运行脚本（无需下载，适合快速体验/云主机/临时环境）
-安装完成后想再进入脚本就继续一键运行脚本，脚本自动更新
 
 ```bash
 curl -fsSL "https://raw.githubusercontent.com/ypq123456789/openlist/refs/heads/main/openlist.sh" | sudo bash
 ```
 
 ### 可选：本地下载后运行（适合需自定义或长期维护的用户）
-安装完成后想再进入脚本只需输入最后一步，但脚本没法自动更新，如果想自动更新最新脚本就三步都需要输入
 
 ```bash
 curl -fsSL "https://raw.githubusercontent.com/ypq123456789/openlist/refs/heads/main/openlist.sh" -o openlist.sh
