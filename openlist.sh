@@ -3,7 +3,7 @@
 #
 # OpenList Interactive Manager Script
 #
-# Version: 1.6.0
+# Version: 1.6.1
 # Last Updated: 2025-06-21
 #
 # Description:
@@ -27,7 +27,7 @@
 GITHUB_REPO="OpenListTeam/OpenList"
 VERSION_TAG="beta"
 VERSION_FILE="/opt/openlist/.version"
-MANAGER_VERSION="1.6.0"  # 更新管理器版本号
+MANAGER_VERSION="1.6.1"  # 更新管理器版本号
 
 # 颜色配置
 RED_COLOR='\e[1;31m'
@@ -570,7 +570,7 @@ show_welcome() {
     echo -e "${RES}"
     
     # 添加提示信息
-    echo -e "${YELLOW_COLOR}💡 提示：输入 'openlist' 可再次唤出脚本${RES}"
+    echo -e "${YELLOW_COLOR}* 提示：输入 'openlist' 可再次唤出脚本${RES}"
     echo
 
     echo -e "${BLUE_COLOR}系统信息：${RES}"
@@ -929,7 +929,7 @@ install_openlist() {
     
     echo -e "${BLUE_COLOR}访问信息：${RES}"
     echo -e "本地访问: http://127.0.0.1:5244/"
-    echo -e "局域网访问: http://${local_ip}:5244/"
+    echo -e "公网访问: http://${local_ip}:5244/"
     echo
     echo -e "${BLUE_COLOR}默认账号：${RES}admin"
     echo -e "${BLUE_COLOR}初始密码：${RES}请查看服务日志获取"
@@ -1174,7 +1174,7 @@ show_status() {
         local local_ip=$(get_local_ip)
         echo -e "${BLUE_COLOR}● 访问地址：${RES}"
         echo -e "  本地访问: http://127.0.0.1:5244/"
-        echo -e "  局域网访问: http://${local_ip}:5244/"
+        echo -e "  公网访问: http://${local_ip}:5244/"
         
         # 显示端口状态
         if ss -tlnp 2>/dev/null | grep -q ":5244" || netstat -tlnp 2>/dev/null | grep -q ":5244"; then
@@ -1952,7 +1952,7 @@ show_main_menu() {
         echo -e "${RES}"
         
         # 添加提示信息
-        echo -e "${YELLOW_COLOR}💡 提示：输入 'openlist' 可再次唤出脚本${RES}"
+        echo -e "${YELLOW_COLOR}* 提示：输入 'openlist' 可再次唤出脚本${RES}"
         echo
 
         # 关键组件状态
