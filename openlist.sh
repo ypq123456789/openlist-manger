@@ -3,7 +3,7 @@
 #
 # OpenList Interactive Manager Script
 #
-# Version: 1.5.6
+# Version: 1.5.7
 # Last Updated: 2025-06-20
 #
 # Description: 
@@ -60,30 +60,129 @@ install_to_system_path() {
         exit 1
     fi
     
-    # 创建临时文件来保存脚本内容
-    local temp_script="/tmp/openlist_install_$$.sh"
+    # 创建简单的openlist命令
+    cat > "/usr/local/bin/openlist" << 'EOF'
+#!/bin/bash
+
+# OpenList 自动下载执行器
+# 每次运行都下载最新脚本并执行
+
+# 颜色配置
+RED_COLOR='\e[1;31m'
+GREEN_COLOR='\e[1;32m'
+YELLOW_COLOR='\e[1;33m'
+BLUE_COLOR='\e[1;34m'
+CYAN_COLOR='\e[1;36m'
+RES='\e[0m'
+
+# 显示欢迎信息
+show_welcome() {
+    echo -e "${CYAN_COLOR}"
+    echo "╔══════════════════════════════════════════════════════════════╗"
+    echo "║                    OpenList 自动下载执行器                    ║"
+    echo "║                                                              ║"
+    echo "║                   Auto Download & Execute                    ║"
+    echo "╚══════════════════════════════════════════════════════════════╝"
+    echo -e "${RES}"
+}
+
+# 下载并执行脚本
+download_and_execute() {
+    echo -e "${BLUE_COLOR}正在下载最新版本的OpenList脚本...${RES}"
     
-    # 如果是通过管道执行，需要从标准输入读取脚本内容
-    if [[ "$0" == "/dev/fd/"* ]] || [[ "$0" == "/proc/self/fd/"* ]]; then
-        # 从标准输入读取脚本内容并保存到临时文件
-        cat > "$temp_script"
-    else
-        # 复制当前脚本到临时文件
-        cp "$0" "$temp_script"
-    fi
+    # 创建临时文件
+    local temp_script="/tmp/openlist_$$.sh"
     
-    # 复制到系统PATH
-    if cp "$temp_script" "/usr/local/bin/openlist"; then
-        chmod +x "/usr/local/bin/openlist"
-        rm -f "$temp_script"
-        echo -e "${GREEN_COLOR}安装成功！现在可以在任何地方使用 'openlist' 命令${RES}"
-        echo -e "${YELLOW_COLOR}重新执行: openlist${RES}"
-        exec "/usr/local/bin/openlist" "$@"
+    # 下载脚本
+    if curl -fsSL "https://raw.githubusercontent.com/ypq123456789/openlist/refs/heads/main/onelist.sh" -o "$temp_script"; then
+        # 验证下载的脚本
+        if [[ -f "$temp_script" ]] && [[ -s "$temp_script" ]]; then
+            # 检查脚本是否包含必要的标识
+            if grep -q "OpenList Interactive Manager Script" "$temp_script"; then
+                # 设置执行权限
+                chmod +x "$temp_script"
+                
+                echo -e "${GREEN_COLOR}下载成功！正在执行...${RES}"
+                echo -e "${YELLOW_COLOR}================================${RES}"
+                
+                # 执行脚本
+                exec "$temp_script" "$@"
+            else
+                echo -e "${RED_COLOR}下载的文件不是有效的OpenList脚本${RES}"
+                rm -f "$temp_script"
+                exit 1
+            fi
+        else
+            echo -e "${RED_COLOR}下载的文件无效${RES}"
+            rm -f "$temp_script"
+            exit 1
+        fi
     else
-        rm -f "$temp_script"
-        echo -e "${RED_COLOR}安装失败${RES}"
+        echo -e "${RED_COLOR}下载失败，请检查网络连接${RES}"
         exit 1
     fi
+}
+
+# 检查网络连接
+check_network() {
+    echo -e "${BLUE_COLOR}检查网络连接...${RES}"
+    if ! curl -s --connect-timeout 5 --max-time 10 "https://raw.githubusercontent.com" > /dev/null; then
+        echo -e "${RED_COLOR}网络连接失败，无法下载脚本${RES}"
+        exit 1
+    fi
+    echo -e "${GREEN_COLOR}网络连接正常${RES}"
+}
+
+# 显示帮助信息
+show_help() {
+    echo -e "${CYAN_COLOR}OpenList 自动下载执行器使用说明：${RES}"
+    echo
+    echo -e "${GREEN_COLOR}基本用法：${RES}"
+    echo -e "  openlist                    # 下载并执行最新版本"
+    echo -e "  openlist install            # 安装OpenList"
+    echo -e "  openlist docker_update      # Docker模式更新"
+    echo -e "  openlist help               # 显示此帮助信息"
+    echo
+    echo -e "${YELLOW_COLOR}特性：${RES}"
+    echo -e "  ✅ 每次运行都下载最新版本"
+    echo -e "  ✅ 自动验证脚本完整性"
+    echo -e "  ✅ 网络连接检测"
+    echo -e "  ✅ 错误处理机制"
+    echo
+    echo -e "${BLUE_COLOR}注意：首次运行需要root权限${RES}"
+}
+
+# 主函数
+main() {
+    # 检查参数
+    case "${1:-}" in
+        "help"|"-h"|"--help")
+            show_help
+            exit 0
+            ;;
+        *)
+            # 显示欢迎信息
+            show_welcome
+            
+            # 检查网络
+            check_network
+            
+            # 下载并执行
+            download_and_execute
+            ;;
+    esac
+}
+
+# 执行主函数
+main "$@"
+EOF
+
+    # 设置执行权限
+    chmod +x "/usr/local/bin/openlist"
+    
+    echo -e "${GREEN_COLOR}安装成功！现在可以在任何地方使用 'openlist' 命令${RES}"
+    echo -e "${YELLOW_COLOR}重新执行: openlist${RES}"
+    exec "/usr/local/bin/openlist" "$@"
 }
 
 # 在脚本开始时执行自安装检查
@@ -156,7 +255,7 @@ check_script_update
 GITHUB_REPO="OpenListTeam/OpenList"
 VERSION_TAG="beta"
 VERSION_FILE="/opt/openlist/.version"
-MANAGER_VERSION="1.5.5"  # 更新管理器版本号
+MANAGER_VERSION="1.5.7"  # 更新管理器版本号
 
 # 颜色配置
 RED_COLOR='\e[1;31m'
