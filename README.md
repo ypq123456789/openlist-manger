@@ -50,7 +50,7 @@ curl -fsSL "https://raw.githubusercontent.com/ypq123456789/openlist/refs/heads/m
 ```
 
 ### 可选：本地下载后运行（适合需自定义或长期维护的用户）
-安装完成后想再进入脚本只需输入最后一步，但脚本没法自动更新
+安装完成后想再进入脚本只需输入最后一步，但脚本没法自动更新，如果想自动更新最新脚本就三步都需要输入
 
 ```bash
 curl -fsSL "https://raw.githubusercontent.com/ypq123456789/openlist/refs/heads/main/openlist.sh" -o openlist.sh
