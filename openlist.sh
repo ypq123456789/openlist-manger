@@ -3,7 +3,7 @@
 #
 # OpenList Interactive Manager Script
 #
-# Version: 1.6.1
+# Version: 1.6.2
 # Last Updated: 2025-06-21
 #
 # Description:
@@ -27,7 +27,7 @@
 GITHUB_REPO="OpenListTeam/OpenList"
 VERSION_TAG="beta"
 VERSION_FILE="/opt/openlist/.version"
-MANAGER_VERSION="1.6.1"  # 更新管理器版本号
+MANAGER_VERSION="1.6.2"  # 更新管理器版本号
 
 # 颜色配置
 RED_COLOR='\e[1;31m'
@@ -626,10 +626,9 @@ select_version() {
     echo -e "${GREEN_COLOR}3${RES} - 手动输入版本标签"
     echo -e "${GREEN_COLOR}4${RES} - 返回主菜单"
     echo
-    
     while true; do
-        read -r -p "请输入选项 [1-4]: " version_choice < /dev/tty
-        
+        local version_choice
+        version_choice=$(default_read "请输入选项 [1-4] (默认1): " "1")
         case "$version_choice" in
             1)
                 VERSION_TAG="beta"
@@ -640,7 +639,8 @@ select_version() {
                 echo
                 if get_available_versions; then
                     echo
-                    read -r -p "请输入要使用的版本标签: " custom_version < /dev/tty
+                    local custom_version
+                    custom_version=$(default_read "请输入要使用的版本标签 (默认beta): " "beta")
                     if [ ! -z "$custom_version" ]; then
                         VERSION_TAG="$custom_version"
                         echo -e "${GREEN_COLOR}已选择版本：$VERSION_TAG${RES}"
@@ -655,7 +655,8 @@ select_version() {
                 break
                 ;;
             3)
-                read -r -p "请输入版本标签 (如: beta, v1.0.0): " custom_version < /dev/tty
+                local custom_version
+                custom_version=$(default_read "请输入版本标签 (如: beta, v1.0.0，默认beta): " "beta")
                 if [ ! -z "$custom_version" ]; then
                     VERSION_TAG="$custom_version"
                     echo -e "${GREEN_COLOR}已选择版本：$VERSION_TAG${RES}"
@@ -673,7 +674,6 @@ select_version() {
                 ;;
         esac
     done
-    
     sleep 1
     return 0
 }
@@ -1950,11 +1950,9 @@ show_main_menu() {
         echo "║                   Interactive Manager v${MANAGER_VERSION}                ║"
         echo "╚══════════════════════════════════════════════════════════════╝"
         echo -e "${RES}"
-        
         # 添加提示信息
         echo -e "${YELLOW_COLOR}* 提示：输入 'openlist' 可再次唤出脚本${RES}"
         echo
-
         # 关键组件状态
         is_openlist_binary_downloaded
         is_openlist_service_running
@@ -1968,7 +1966,6 @@ show_main_menu() {
         echo -e "  1. ${GREEN_COLOR}二进制文件服务模式（适合大多数用户，兼容性好）${RES}"
         echo -e "  2. ${GREEN_COLOR}Docker 安装（适合有 Docker 环境的用户，隔离性强）${RES}"
         echo
-
         echo -e "${PURPLE_COLOR}═══ 二进制文件服务模式 ═══${RES}"
         echo -e "${GREEN_COLOR}1${RES}  - 安装 OpenList"
         echo -e "${GREEN_COLOR}2${RES}  - 更新 OpenList"
@@ -1996,12 +1993,11 @@ show_main_menu() {
         echo
         echo -e "${GREEN_COLOR}0${RES}  - 退出脚本"
         echo
-        read -p "请输入选项 [0-17]: " -r choice < /dev/tty
+        local choice
+        choice=$(default_read "请输入选项 [0-17] (默认0): " "0")
         echo -e "${YELLOW_COLOR}[调试] 输入的选项: '$choice'${RES}"
         if [ -z "$choice" ]; then
-            echo -e "${RED_COLOR}请输入有效的选项 [0-17]${RES}"
-            sleep 2
-            continue
+            choice=0
         fi
         if ! [[ "$choice" =~ ^[0-9]+$ ]]; then
             echo -e "${RED_COLOR}请输入数字选项 [0-17]${RES}"
@@ -2028,7 +2024,7 @@ show_main_menu() {
             17) show_auto_update_menu ;;
             0) 
                 echo -e "${GREEN_COLOR}谢谢使用！${RES}"
-                echo -e "${YELLOW_COLOR}💡 提示：如需再次使用，请输入 'openlist' 命令${RES}"
+                echo -e "${YELLOW_COLOR}* 提示：如需再次使用，请输入 'openlist' 命令${RES}"
                 exit 0 
                 ;;
             *) echo -e "${RED_COLOR}无效选项，请重新选择${RES}"; echo -e "${YELLOW_COLOR}[调试] 无效选项: '$choice'${RES}"; sleep 2 ;;
@@ -2151,8 +2147,197 @@ show_domain_bind_status() {
     fi
 }
 
-# 主程序入口
+# 1. 优化所有菜单和输入，回车直接选择默认选项
+# 2. 优化版本检查逻辑，自动从 GitHub releases 获取最新版本
+
+# --- 版本检查函数 ---
+check_latest_version() {
+    echo -e "${BLUE_COLOR}正在检查 OpenList 最新版本...${RES}"
+    local latest_version
+    latest_version=$(curl -s https://api.github.com/repos/OpenListTeam/OpenList/releases/latest | grep 'tag_name' | head -1 | cut -d '"' -f4)
+    if [ -z "$latest_version" ]; then
+        echo -e "${YELLOW_COLOR}无法获取最新版本信息，跳过检查${RES}"
+        return
+    fi
+    if [ "$latest_version" != "$VERSION_TAG" ]; then
+        echo -e "${YELLOW_COLOR}发现新版本: $latest_version (当前: $VERSION_TAG)${RES}"
+        echo -e "${YELLOW_COLOR}建议前往 https://github.com/OpenListTeam/OpenList/releases 下载或更新${RES}"
+    else
+        echo -e "${GREEN_COLOR}当前已是最新版本: $VERSION_TAG${RES}"
+    fi
+}
+
+# --- 优化菜单输入函数 ---
+# 用于所有菜单，支持回车默认选项
+default_read() {
+    local prompt="$1"
+    local default="$2"
+    local input
+    read -r -p "$prompt" input < /dev/tty
+    if [ -z "$input" ]; then
+        input="$default"
+    fi
+    echo "$input"
+}
+
+# --- 替换所有菜单输入为 default_read ---
+# 以 select_version 为例
+select_version() {
+    echo -e "${PURPLE_COLOR}请选择要使用的版本：${RES}"
+    echo -e "${GREEN_COLOR}1${RES} - beta (推荐，最新功能)"
+    echo -e "${GREEN_COLOR}2${RES} - 查看所有可用版本"
+    echo -e "${GREEN_COLOR}3${RES} - 手动输入版本标签"
+    echo -e "${GREEN_COLOR}4${RES} - 返回主菜单"
+    echo
+    while true; do
+        local version_choice
+        version_choice=$(default_read "请输入选项 [1-4] (默认1): " "1")
+        case "$version_choice" in
+            1)
+                VERSION_TAG="beta"
+                echo -e "${GREEN_COLOR}已选择 beta 版本${RES}"
+                break
+                ;;
+            2)
+                echo
+                if get_available_versions; then
+                    echo
+                    local custom_version
+                    custom_version=$(default_read "请输入要使用的版本标签 (默认beta): " "beta")
+                    if [ ! -z "$custom_version" ]; then
+                        VERSION_TAG="$custom_version"
+                        echo -e "${GREEN_COLOR}已选择版本：$VERSION_TAG${RES}"
+                    else
+                        VERSION_TAG="beta"
+                        echo -e "${YELLOW_COLOR}输入为空，使用 beta 版本${RES}"
+                    fi
+                else
+                    VERSION_TAG="beta"
+                    echo -e "${YELLOW_COLOR}获取版本失败，使用 beta 版本${RES}"
+                fi
+                break
+                ;;
+            3)
+                local custom_version
+                custom_version=$(default_read "请输入版本标签 (如: beta, v1.0.0，默认beta): " "beta")
+                if [ ! -z "$custom_version" ]; then
+                    VERSION_TAG="$custom_version"
+                    echo -e "${GREEN_COLOR}已选择版本：$VERSION_TAG${RES}"
+                else
+                    VERSION_TAG="beta"
+                    echo -e "${YELLOW_COLOR}输入为空，使用 beta 版本${RES}"
+                fi
+                break
+                ;;
+            4)
+                return 1
+                ;;
+            *)
+                echo -e "${RED_COLOR}无效选项，请重新选择${RES}"
+                ;;
+        esac
+    done
+    sleep 1
+    return 0
+}
+
+# --- 在主菜单和其他菜单调用 default_read 替换 read -r -p ---
+# 以主菜单为例
+show_main_menu() {
+    while true; do
+        clear
+        echo -e "${CYAN_COLOR}"
+        echo "╔══════════════════════════════════════════════════════════════╗"
+        echo "║                    OpenList 管理脚本                         ║"
+        echo "║                                                              ║"
+        echo "║                   Interactive Manager v${MANAGER_VERSION}                ║"
+        echo "╚══════════════════════════════════════════════════════════════╝"
+        echo -e "${RES}"
+        # 添加提示信息
+        echo -e "${YELLOW_COLOR}* 提示：输入 'openlist' 可再次唤出脚本${RES}"
+        echo
+        # 关键组件状态
+        is_openlist_binary_downloaded
+        is_openlist_service_running
+        is_docker_installed
+        is_openlist_docker_installed
+        is_nginx_installed
+        show_domain_bind_status
+        echo
+        # 推荐安装方式
+        echo -e "${BLUE_COLOR}推荐安装方式：${RES}"
+        echo -e "  1. ${GREEN_COLOR}二进制文件服务模式（适合大多数用户，兼容性好）${RES}"
+        echo -e "  2. ${GREEN_COLOR}Docker 安装（适合有 Docker 环境的用户，隔离性强）${RES}"
+        echo
+        echo -e "${PURPLE_COLOR}═══ 二进制文件服务模式 ═══${RES}"
+        echo -e "${GREEN_COLOR}1${RES}  - 安装 OpenList"
+        echo -e "${GREEN_COLOR}2${RES}  - 更新 OpenList"
+        echo -e "${GREEN_COLOR}3${RES}  - 卸载 OpenList"
+        echo -e "${GREEN_COLOR}4${RES}  - 迁移 Alist 数据到 OpenList"
+        echo -e "${GREEN_COLOR}5${RES}  - 启动服务"
+        echo -e "${GREEN_COLOR}6${RES}  - 停止服务"
+        echo -e "${GREEN_COLOR}7${RES}  - 重启服务"
+        echo -e "${GREEN_COLOR}8${RES}  - 查看状态"
+        echo -e "${GREEN_COLOR}9${RES}  - 查看日志"
+        echo
+        echo -e "${PURPLE_COLOR}═══ Docker 管理 ═══${RES}"
+        echo -e "${GREEN_COLOR}10${RES} - Docker 一键安装/启动 OpenList"
+        echo -e "${GREEN_COLOR}11${RES} - 进入 OpenList 容器"
+        echo -e "${GREEN_COLOR}12${RES} - 容器内设置管理员密码"
+        echo -e "${GREEN_COLOR}13${RES} - 重启 OpenList 容器"
+        echo -e "${GREEN_COLOR}14${RES} - 查看容器状态"
+        echo -e "${GREEN_COLOR}15${RES} - 查看容器日志"
+        echo
+        echo -e "${PURPLE_COLOR}═══ 域名绑定/反向代理 ═══${RES}"
+        echo -e "${GREEN_COLOR}16${RES} - 域名绑定/反代设置"
+        echo
+        echo -e "${PURPLE_COLOR}═══ 定时自动更新 ═══${RES}"
+        echo -e "${GREEN_COLOR}17${RES} - 定时自动更新设置"
+        echo
+        echo -e "${GREEN_COLOR}0${RES}  - 退出脚本"
+        echo
+        local choice
+        choice=$(default_read "请输入选项 [0-17] (默认0): " "0")
+        echo -e "${YELLOW_COLOR}[调试] 输入的选项: '$choice'${RES}"
+        if [ -z "$choice" ]; then
+            choice=0
+        fi
+        if ! [[ "$choice" =~ ^[0-9]+$ ]]; then
+            echo -e "${RED_COLOR}请输入数字选项 [0-17]${RES}"
+            sleep 2
+            continue
+        fi
+        case "$choice" in
+            1) check_disk_space && install_openlist ;;
+            2) check_disk_space && update_openlist ;;
+            3) uninstall_openlist ;;
+            4) check_disk_space && migrate_alist_data ;;
+            5) control_service start "启动" ;;
+            6) control_service stop "停止" ;;
+            7) control_service restart "重启" ;;
+            8) show_status ;;
+            9) show_logs ;;
+            10) install_openlist_docker ;;
+            11) exec_openlist_docker ;;
+            12) set_password_openlist_docker ;;
+            13) restart_openlist_docker ;;
+            14) status_openlist_docker ;;
+            15) logs_openlist_docker ;;
+            16) show_domain_proxy_menu ;;
+            17) show_auto_update_menu ;;
+            0) 
+                echo -e "${GREEN_COLOR}谢谢使用！${RES}"
+                echo -e "${YELLOW_COLOR}* 提示：如需再次使用，请输入 'openlist' 命令${RES}"
+                exit 0 
+                ;;
+            *) echo -e "${RED_COLOR}无效选项，请重新选择${RES}"; echo -e "${YELLOW_COLOR}[调试] 无效选项: '$choice'${RES}"; sleep 2 ;;
+        esac
+    done
+}
+
+# --- 在主程序入口增加版本检查 ---
 main() {
+    check_latest_version
     show_welcome
     check_system_requirements
     check_disk_space
