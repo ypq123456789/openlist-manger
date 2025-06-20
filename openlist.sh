@@ -3,7 +3,7 @@
 #
 # OpenList Interactive Manager Script
 #
-# Version: 1.5.5
+# Version: 1.5.6
 # Last Updated: 2025-06-20
 #
 # Description: 
@@ -694,10 +694,14 @@ show_welcome() {
     echo "╔══════════════════════════════════════════════════════════════╗"
     echo "║                    OpenList 管理脚本                         ║"
     echo "║                                                              ║"
-    echo "║                   Interactive Manager                        ║"
+    echo "║                   Interactive Manager v${MANAGER_VERSION}                ║"
     echo "╚══════════════════════════════════════════════════════════════╝"
     echo -e "${RES}"
+    
+    # 添加提示信息
+    echo -e "${YELLOW_COLOR}💡 提示：输入 'openlist' 可再次唤出脚本${RES}"
     echo
+
     echo -e "${BLUE_COLOR}系统信息：${RES}"
     case "$OS_TYPE" in
         "linux")
@@ -2075,6 +2079,10 @@ show_main_menu() {
         echo "║                   Interactive Manager v${MANAGER_VERSION}                ║"
         echo "╚══════════════════════════════════════════════════════════════╝"
         echo -e "${RES}"
+        
+        # 添加提示信息
+        echo -e "${YELLOW_COLOR}💡 提示：输入 'openlist' 可再次唤出脚本${RES}"
+        echo
 
         # 关键组件状态
         is_openlist_binary_downloaded
@@ -2147,7 +2155,11 @@ show_main_menu() {
             15) logs_openlist_docker ;;
             16) show_domain_proxy_menu ;;
             17) show_auto_update_menu ;;
-            0) echo -e "${GREEN_COLOR}谢谢使用！${RES}"; exit 0 ;;
+            0) 
+                echo -e "${GREEN_COLOR}谢谢使用！${RES}"
+                echo -e "${YELLOW_COLOR}💡 提示：如需再次使用，请输入 'openlist' 命令${RES}"
+                exit 0 
+                ;;
             *) echo -e "${RED_COLOR}无效选项，请重新选择${RES}"; echo -e "${YELLOW_COLOR}[调试] 无效选项: '$choice'${RES}"; sleep 2 ;;
         esac
     done
