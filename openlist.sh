@@ -3,7 +3,7 @@
 #
 # OpenList Interactive Manager Script
 #
-# Version: 1.5.7
+# Version: 1.5.8
 # Last Updated: 2025-06-20
 #
 # Description: 
@@ -37,6 +37,8 @@
 install_to_system_path() {
     # 检查是否已经在系统PATH中
     if [[ "$0" == "/usr/local/bin/openlist" ]]; then
+        # 如果当前脚本就是/usr/local/bin/openlist，检查是否需要更新
+        check_and_update_openlist_command
         return 0
     fi
     
@@ -47,6 +49,8 @@ install_to_system_path() {
         # 检查是否在系统PATH中
         local script_path=$(which openlist 2>/dev/null)
         if [[ -n "$script_path" ]] && [[ "$script_path" == "/usr/local/bin/openlist" ]]; then
+            # 检查是否需要更新openlist命令
+            check_and_update_openlist_command
             return 0
         fi
         
@@ -61,6 +65,47 @@ install_to_system_path() {
     fi
     
     # 创建简单的openlist命令
+    create_openlist_command
+    
+    echo -e "${GREEN_COLOR}安装成功！现在可以在任何地方使用 'openlist' 命令${RES}"
+    echo -e "${YELLOW_COLOR}重新执行: openlist${RES}"
+    exec "/usr/local/bin/openlist" "$@"
+}
+
+# 检查并更新openlist命令
+check_and_update_openlist_command() {
+    if [[ "$(id -u)" != "0" ]]; then
+        return 0
+    fi
+    
+    echo -e "${BLUE_COLOR}检查openlist命令版本...${RES}"
+    
+    # 获取远程最新版本
+    local remote_version=$(curl -s "https://raw.githubusercontent.com/ypq123456789/openlist/refs/heads/main/onelist.sh" | grep "MANAGER_VERSION=" | head -1 | cut -d'"' -f2 2>/dev/null)
+    
+    if [[ -z "$remote_version" ]]; then
+        echo -e "${YELLOW_COLOR}无法获取远程版本信息${RES}"
+        return 0
+    fi
+    
+    # 获取当前版本
+    local current_version="$MANAGER_VERSION"
+    
+    # 比较版本
+    if [[ "$remote_version" != "$current_version" ]]; then
+        echo -e "${YELLOW_COLOR}发现新版本: $remote_version (当前: $current_version)${RES}"
+        echo -e "${BLUE_COLOR}正在更新openlist命令...${RES}"
+        
+        # 更新openlist命令
+        create_openlist_command
+        echo -e "${GREEN_COLOR}openlist命令更新成功！${RES}"
+    else
+        echo -e "${GREEN_COLOR}openlist命令已是最新版本${RES}"
+    fi
+}
+
+# 创建openlist命令
+create_openlist_command() {
     cat > "/usr/local/bin/openlist" << 'EOF'
 #!/bin/bash
 
@@ -179,10 +224,6 @@ EOF
 
     # 设置执行权限
     chmod +x "/usr/local/bin/openlist"
-    
-    echo -e "${GREEN_COLOR}安装成功！现在可以在任何地方使用 'openlist' 命令${RES}"
-    echo -e "${YELLOW_COLOR}重新执行: openlist${RES}"
-    exec "/usr/local/bin/openlist" "$@"
 }
 
 # 在脚本开始时执行自安装检查
@@ -255,7 +296,7 @@ check_script_update
 GITHUB_REPO="OpenListTeam/OpenList"
 VERSION_TAG="beta"
 VERSION_FILE="/opt/openlist/.version"
-MANAGER_VERSION="1.5.7"  # 更新管理器版本号
+MANAGER_VERSION="1.5.8"  # 更新管理器版本号
 
 # 颜色配置
 RED_COLOR='\e[1;31m'
