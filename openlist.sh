@@ -3,8 +3,8 @@
 #
 # OpenList Interactive Manager Script
 #
-# Version: 1.6.6
-# Last Updated: 2025-06-21
+# Version: 1.6.7
+# Last Updated: 2025-06-22
 #
 # Description:
 #   An interactive management script for OpenList
@@ -27,7 +27,7 @@
 GITHUB_REPO="OpenListTeam/OpenList"
 VERSION_TAG="beta"
 VERSION_FILE="/opt/openlist/.version"
-MANAGER_VERSION="1.6.6"  # 更新管理器版本号
+MANAGER_VERSION="1.6.7"  # 更新管理器版本号
 
 # 颜色配置
 RED_COLOR='\e[1;31m'
@@ -823,6 +823,44 @@ install_openlist() {
     echo "╚══════════════════════════════════════════════════════════════╝"
     echo -e "${RES}"
     
+    # Termux 环境优先使用 pkg 安装
+    if [ "$OS_TYPE" = "termux" ]; then
+        echo -e "${BLUE_COLOR}检测到 Termux 环境，尝试使用 pkg 安装 OpenList...${RES}"
+        
+        # 更新包列表
+        echo -e "${BLUE_COLOR}更新包列表...${RES}"
+        pkg update -y
+        
+        # 尝试安装 OpenList
+        echo -e "${BLUE_COLOR}安装 OpenList...${RES}"
+        if pkg install -y openlist; then
+            echo -e "${GREEN_COLOR}"
+            echo "╔══════════════════════════════════════════════════════════════╗"
+            echo "║                    OpenList 安装成功！                       ║"
+            echo "╚══════════════════════════════════════════════════════════════╝"
+            echo -e "${RES}"
+            
+            # 获取IP地址
+            local local_ip=$(get_local_ip)
+            
+            echo -e "${BLUE_COLOR}访问信息：${RES}"
+            echo -e "本地访问: http://127.0.0.1:5244/"
+            echo -e "公网访问: http://${local_ip}:5244/"
+            echo
+            echo -e "${BLUE_COLOR}默认账号：${RES}admin"
+            echo -e "${BLUE_COLOR}初始密码：${RES}请查看服务日志获取"
+            echo -e "${YELLOW_COLOR}注意：Termux 环境下请手动启动服务${RES}"
+            echo -e "${YELLOW_COLOR}启动命令：openlist server${RES}"
+            echo
+            
+            read -r -p "按回车键继续..." < /dev/tty
+            return
+        else
+            echo -e "${YELLOW_COLOR}pkg 安装失败，回退到手动下载安装方式${RES}"
+            echo
+        fi
+    fi
+    
     # 检查安装
     if ! check_install; then
         read -r -p "按回车键继续..." < /dev/tty
@@ -1156,45 +1194,118 @@ show_status() {
     echo "╚══════════════════════════════════════════════════════════════╝"
     echo -e "${RES}"
     
-    if [ -f "$INSTALL_PATH/openlist" ]; then
-        if check_service_status; then
-            echo -e "${GREEN_COLOR}● OpenList 状态：运行中${RES}"
-        else
-            echo -e "${RED_COLOR}● OpenList 状态：已停止${RES}"
-        fi
-        
-        # 显示版本信息
-        if [ -f "$VERSION_FILE" ]; then
-            local version=$(head -n1 "$VERSION_FILE" 2>/dev/null)
-            local install_time=$(tail -n1 "$VERSION_FILE" 2>/dev/null)
+    if [ "$OS_TYPE" = "termux" ]; then
+        # Termux 环境下的状态检查
+        if command -v openlist >/dev/null 2>&1; then
+            # pkg 安装的 OpenList
+            if pgrep -f "openlist server" >/dev/null 2>&1; then
+                echo -e "${GREEN_COLOR}● OpenList 状态：运行中 (pkg 安装)${RES}"
+            else
+                echo -e "${RED_COLOR}● OpenList 状态：已停止 (pkg 安装)${RES}"
+            fi
+            
+            # 显示版本信息
+            local version=$(openlist version 2>/dev/null || echo "未知")
             echo -e "${BLUE_COLOR}● 当前版本：${RES}$version"
-            echo -e "${BLUE_COLOR}● 安装时间：${RES}$install_time"
+            echo -e "${BLUE_COLOR}● 安装方式：${RES}pkg 安装"
+            echo -e "${BLUE_COLOR}● 可执行文件：${RES}$(which openlist)"
+            
+            # 显示网络信息
+            local local_ip=$(get_local_ip)
+            echo -e "${BLUE_COLOR}● 访问地址：${RES}"
+            echo -e "  本地访问: http://127.0.0.1:5244/"
+            echo -e "  公网访问: http://${local_ip}:5244/"
+            
+            # 显示端口状态
+            if ss -tlnp 2>/dev/null | grep -q ":5244" || netstat -tlnp 2>/dev/null | grep -q ":5244"; then
+                echo -e "${GREEN_COLOR}● 端口 5244: 已监听${RES}"
+            else
+                echo -e "${RED_COLOR}● 端口 5244: 未监听${RES}"
+            fi
+            
+        elif [ -f "$INSTALL_PATH/openlist" ]; then
+            # 手动安装的 OpenList
+            if pgrep -f "openlist server" >/dev/null 2>&1; then
+                echo -e "${GREEN_COLOR}● OpenList 状态：运行中 (手动安装)${RES}"
+            else
+                echo -e "${RED_COLOR}● OpenList 状态：已停止 (手动安装)${RES}"
+            fi
+            
+            # 显示版本信息
+            if [ -f "$VERSION_FILE" ]; then
+                local version=$(head -n1 "$VERSION_FILE" 2>/dev/null)
+                local install_time=$(tail -n1 "$VERSION_FILE" 2>/dev/null)
+                echo -e "${BLUE_COLOR}● 当前版本：${RES}$version"
+                echo -e "${BLUE_COLOR}● 安装时间：${RES}$install_time"
+            else
+                echo -e "${YELLOW_COLOR}● 版本信息：未知${RES}"
+            fi
+            
+            # 显示文件信息
+            echo -e "${BLUE_COLOR}● 安装路径：${RES}$INSTALL_PATH"
+            echo -e "${BLUE_COLOR}● 配置文件：${RES}$INSTALL_PATH/data/config.json"
+            if [ -f "$INSTALL_PATH/openlist" ]; then
+                echo -e "${BLUE_COLOR}● 文件大小：${RES}$(ls -lh "$INSTALL_PATH/openlist" | awk '{print $5}')"
+                echo -e "${BLUE_COLOR}● 修改时间：${RES}$(stat -c %y "$INSTALL_PATH/openlist" | cut -d. -f1)"
+            fi
+            
+            # 显示网络信息
+            local local_ip=$(get_local_ip)
+            echo -e "${BLUE_COLOR}● 访问地址：${RES}"
+            echo -e "  本地访问: http://127.0.0.1:5244/"
+            echo -e "  公网访问: http://${local_ip}:5244/"
+            
+            # 显示端口状态
+            if ss -tlnp 2>/dev/null | grep -q ":5244" || netstat -tlnp 2>/dev/null | grep -q ":5244"; then
+                echo -e "${GREEN_COLOR}● 端口 5244: 已监听${RES}"
+            else
+                echo -e "${RED_COLOR}● 端口 5244: 未监听${RES}"
+            fi
         else
-            echo -e "${YELLOW_COLOR}● 版本信息：未知${RES}"
-        fi
-        
-        # 显示文件信息
-        echo -e "${BLUE_COLOR}● 安装路径：${RES}$INSTALL_PATH"
-        echo -e "${BLUE_COLOR}● 配置文件：${RES}$INSTALL_PATH/data/config.json"
-        if [ -f "$INSTALL_PATH/openlist" ]; then
-            echo -e "${BLUE_COLOR}● 文件大小：${RES}$(ls -lh "$INSTALL_PATH/openlist" | awk '{print $5}')"
-            echo -e "${BLUE_COLOR}● 修改时间：${RES}$(stat -c %y "$INSTALL_PATH/openlist" | cut -d. -f1)"
-        fi
-        
-        # 显示网络信息
-        local local_ip=$(get_local_ip)
-        echo -e "${BLUE_COLOR}● 访问地址：${RES}"
-        echo -e "  本地访问: http://127.0.0.1:5244/"
-        echo -e "  公网访问: http://${local_ip}:5244/"
-        
-        # 显示端口状态
-        if ss -tlnp 2>/dev/null | grep -q ":5244" || netstat -tlnp 2>/dev/null | grep -q ":5244"; then
-            echo -e "${GREEN_COLOR}● 端口 5244: 已监听${RES}"
-        else
-            echo -e "${RED_COLOR}● 端口 5244: 未监听${RES}"
+            echo -e "${YELLOW_COLOR}● OpenList 状态：未安装${RES}"
         fi
     else
-        echo -e "${YELLOW_COLOR}● OpenList 状态：未安装${RES}"
+        # 其他环境的状态检查
+        if [ -f "$INSTALL_PATH/openlist" ]; then
+            if check_service_status; then
+                echo -e "${GREEN_COLOR}● OpenList 状态：运行中${RES}"
+            else
+                echo -e "${RED_COLOR}● OpenList 状态：已停止${RES}"
+            fi
+            
+            # 显示版本信息
+            if [ -f "$VERSION_FILE" ]; then
+                local version=$(head -n1 "$VERSION_FILE" 2>/dev/null)
+                local install_time=$(tail -n1 "$VERSION_FILE" 2>/dev/null)
+                echo -e "${BLUE_COLOR}● 当前版本：${RES}$version"
+                echo -e "${BLUE_COLOR}● 安装时间：${RES}$install_time"
+            else
+                echo -e "${YELLOW_COLOR}● 版本信息：未知${RES}"
+            fi
+            
+            # 显示文件信息
+            echo -e "${BLUE_COLOR}● 安装路径：${RES}$INSTALL_PATH"
+            echo -e "${BLUE_COLOR}● 配置文件：${RES}$INSTALL_PATH/data/config.json"
+            if [ -f "$INSTALL_PATH/openlist" ]; then
+                echo -e "${BLUE_COLOR}● 文件大小：${RES}$(ls -lh "$INSTALL_PATH/openlist" | awk '{print $5}')"
+                echo -e "${BLUE_COLOR}● 修改时间：${RES}$(stat -c %y "$INSTALL_PATH/openlist" | cut -d. -f1)"
+            fi
+            
+            # 显示网络信息
+            local local_ip=$(get_local_ip)
+            echo -e "${BLUE_COLOR}● 访问地址：${RES}"
+            echo -e "  本地访问: http://127.0.0.1:5244/"
+            echo -e "  公网访问: http://${local_ip}:5244/"
+            
+            # 显示端口状态
+            if ss -tlnp 2>/dev/null | grep -q ":5244" || netstat -tlnp 2>/dev/null | grep -q ":5244"; then
+                echo -e "${GREEN_COLOR}● 端口 5244: 已监听${RES}"
+            else
+                echo -e "${RED_COLOR}● 端口 5244: 未监听${RES}"
+            fi
+        else
+            echo -e "${YELLOW_COLOR}● OpenList 状态：未安装${RES}"
+        fi
     fi
     
     echo
@@ -1824,23 +1935,50 @@ is_openlist_docker_installed() {
 
 # 检查 OpenList 二进制文件是否已下载
 is_openlist_binary_downloaded() {
-    if [ -f "$INSTALL_PATH/openlist" ]; then
-        echo -e "${GREEN_COLOR}OpenList 二进制文件已下载${RES}"
-        return 0
+    if [ "$OS_TYPE" = "termux" ]; then
+        # Termux 环境下检查 pkg 安装的 OpenList
+        if command -v openlist >/dev/null 2>&1; then
+            echo -e "${GREEN_COLOR}OpenList 已安装 (pkg 安装)${RES}"
+            return 0
+        elif [ -f "$INSTALL_PATH/openlist" ]; then
+            echo -e "${GREEN_COLOR}OpenList 二进制文件已下载 (手动安装)${RES}"
+            return 0
+        else
+            echo -e "${YELLOW_COLOR}OpenList 未安装${RES}"
+            return 1
+        fi
     else
-        echo -e "${YELLOW_COLOR}OpenList 二进制文件未下载${RES}"
-        return 1
+        # 其他环境检查手动安装的文件
+        if [ -f "$INSTALL_PATH/openlist" ]; then
+            echo -e "${GREEN_COLOR}OpenList 二进制文件已下载${RES}"
+            return 0
+        else
+            echo -e "${YELLOW_COLOR}OpenList 二进制文件未下载${RES}"
+            return 1
+        fi
     fi
 }
 
 # 检查 OpenList 服务是否正在运行
 is_openlist_service_running() {
-    if check_service_status; then
-        echo -e "${GREEN_COLOR}OpenList 服务正在运行${RES}"
-        return 0
+    if [ "$OS_TYPE" = "termux" ]; then
+        # Termux 环境下检查 OpenList 进程
+        if pgrep -f "openlist server" >/dev/null 2>&1; then
+            echo -e "${GREEN_COLOR}OpenList 服务正在运行${RES}"
+            return 0
+        else
+            echo -e "${YELLOW_COLOR}OpenList 服务未运行${RES}"
+            return 1
+        fi
     else
-        echo -e "${YELLOW_COLOR}OpenList 服务未运行${RES}"
-        return 1
+        # 其他环境检查系统服务
+        if check_service_status; then
+            echo -e "${GREEN_COLOR}OpenList 服务正在运行${RES}"
+            return 0
+        else
+            echo -e "${YELLOW_COLOR}OpenList 服务未运行${RES}"
+            return 1
+        fi
     fi
 }
 
