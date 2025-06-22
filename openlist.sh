@@ -3,7 +3,7 @@
 #
 # OpenList Interactive Manager Script
 #
-# Version: 1.6.5
+# Version: 1.6.6
 # Last Updated: 2025-06-21
 #
 # Description:
@@ -27,7 +27,7 @@
 GITHUB_REPO="OpenListTeam/OpenList"
 VERSION_TAG="beta"
 VERSION_FILE="/opt/openlist/.version"
-MANAGER_VERSION="1.6.5"  # 更新管理器版本号
+MANAGER_VERSION="1.6.6"  # 更新管理器版本号
 
 # 颜色配置
 RED_COLOR='\e[1;31m'
@@ -2047,19 +2047,132 @@ show_main_menu() {
 CRON_MARK_BIN='# OpenList二进制自动更新'
 CRON_MARK_DOCKER='# OpenList Docker自动更新'
 
+# 非交互式更新函数
+non_interactive_update() {
+    local mode=$1
+    
+    if [ "$mode" = "bin" ]; then
+        # 非交互式二进制更新
+        if [ ! -f "$INSTALL_PATH/openlist" ]; then
+            echo "OpenList 未安装，跳过更新"
+            return 1
+        fi
+        
+        # 获取最新正式版 release
+        local latest_release=$(curl -s https://api.github.com/repos/OpenListTeam/OpenList/releases/latest | grep 'tag_name' | head -1 | cut -d '"' -f4)
+        if [ -z "$latest_release" ]; then
+            echo "无法获取最新版本，跳过更新"
+            return 1
+        fi
+        
+        # 检查当前版本
+        local current_version="beta"
+        if [ -f "$VERSION_FILE" ]; then
+            current_version=$(head -n1 "$VERSION_FILE" 2>/dev/null || echo "beta")
+        fi
+        
+        if [ "$latest_release" = "$current_version" ]; then
+            echo "当前已是最新版本: $current_version"
+            return 0
+        fi
+        
+        echo "开始自动更新到: $latest_release"
+        
+        # 停止服务
+        stop_service
+        
+        # 下载新版本
+        local download_url="https://github.com/${GITHUB_REPO}/releases/download/${latest_release}/openlist-linux-$ARCH.tar.gz"
+        if ! download_file "$download_url" "/tmp/openlist.tar.gz"; then
+            echo "下载失败，恢复服务"
+            start_service
+            return 1
+        fi
+        
+        # 备份
+        cp "$INSTALL_PATH/openlist" "/tmp/openlist.bak"
+        
+        # 解压
+        if ! tar zxf /tmp/openlist.tar.gz -C "$INSTALL_PATH/"; then
+            echo "解压失败，恢复服务"
+            mv "/tmp/openlist.bak" "$INSTALL_PATH/openlist"
+            start_service
+            rm -f /tmp/openlist.tar.gz
+            return 1
+        fi
+        
+        # 验证更新
+        if [ ! -f "$INSTALL_PATH/openlist" ]; then
+            echo "更新失败，恢复服务"
+            mv "/tmp/openlist.bak" "$INSTALL_PATH/openlist"
+            start_service
+            return 1
+        fi
+        
+        # 设置权限
+        chmod +x "$INSTALL_PATH/openlist"
+        
+        # 更新版本信息
+        echo "$latest_release" > "$VERSION_FILE"
+        echo "$(date '+%Y-%m-%d %H:%M:%S')" >> "$VERSION_FILE"
+        
+        # 启动服务
+        start_service
+        
+        # 清理文件
+        rm -f /tmp/openlist.tar.gz /tmp/openlist.bak
+        
+        echo "自动更新成功: $latest_release"
+        return 0
+        
+    elif [ "$mode" = "docker" ]; then
+        # 非交互式 Docker 更新
+        if ! command -v docker >/dev/null 2>&1; then
+            echo "Docker 未安装，跳过更新"
+            return 1
+        fi
+        
+        local cname=$(find_openlist_container_name)
+        if [ -z "$cname" ]; then
+            echo "未找到 OpenList 容器，跳过更新"
+            return 1
+        fi
+        
+        echo "开始自动更新 Docker 容器"
+        
+        # 拉取最新镜像
+        docker pull ghcr.io/openlistteam/openlist-git:beta
+        
+        # 停止并删除旧容器
+        docker stop "$cname"
+        docker rm "$cname"
+        
+        # 创建新容器
+        docker run -d --name openlist -p 5244:5244 --restart unless-stopped ghcr.io/openlistteam/openlist-git:beta
+        
+        echo "Docker 自动更新成功"
+        return 0
+    fi
+    
+    return 1
+}
+
 setup_cron_update() {
     local mode=$1
     local schedule=$2
     local cmd
     if [ "$mode" = "bin" ]; then
-        cmd="curl -fsSL \"https://raw.githubusercontent.com/ypq123456789/openlist/refs/heads/main/openlist.sh\" | sudo bash -s update"
+        # 修改为非交互式更新命令
+        cmd="curl -fsSL \"https://raw.githubusercontent.com/ypq123456789/openlist-manger/refs/heads/main/openlist.sh\" | sudo bash -s -- non_interactive_update bin"
         mark="$CRON_MARK_BIN"
     else
-        cmd="curl -fsSL \"https://raw.githubusercontent.com/ypq123456789/openlist/refs/heads/main/openlist.sh\" | sudo bash -s docker_update"
+        # 修改为非交互式 Docker 更新命令
+        cmd="curl -fsSL \"https://raw.githubusercontent.com/ypq123456789/openlist-manger/refs/heads/main/openlist.sh\" | sudo bash -s -- non_interactive_update docker"
         mark="$CRON_MARK_DOCKER"
     fi
     (crontab -l 2>/dev/null | grep -v "$mark"; echo "$schedule $cmd $mark") | crontab -
     echo -e "${GREEN_COLOR}定时自动更新任务已设置：$schedule${RES}"
+    echo -e "${BLUE_COLOR}命令：$cmd${RES}"
 }
 
 remove_cron_update() {
@@ -2348,6 +2461,28 @@ show_main_menu() {
 
 # --- 在主程序入口增加版本检查 ---
 main() {
+    # 处理命令行参数
+    if [ $# -gt 0 ]; then
+        case "$1" in
+            "non_interactive_update")
+                if [ -n "$2" ]; then
+                    echo "执行非交互式更新: $2"
+                    non_interactive_update "$2"
+                    exit $?
+                else
+                    echo "错误: 缺少更新模式参数"
+                    exit 1
+                fi
+                ;;
+            *)
+                echo "未知参数: $1"
+                echo "用法: $0 [non_interactive_update <bin|docker>]"
+                exit 1
+                ;;
+        esac
+    fi
+    
+    # 交互式模式
     check_latest_version
     show_welcome
     check_system_requirements
