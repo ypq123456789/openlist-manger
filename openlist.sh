@@ -3,7 +3,7 @@
 #
 # OpenList Interactive Manager Script
 #
-# Version: 1.6.7
+# Version: 1.6.8
 # Last Updated: 2025-06-23
 #
 # Description:
@@ -27,7 +27,7 @@
 GITHUB_REPO="OpenListTeam/OpenList"
 VERSION_TAG="beta"
 VERSION_FILE="/opt/openlist/.version"
-MANAGER_VERSION="1.6.7"  # 更新管理器版本号
+MANAGER_VERSION="1.6.8"  # 更新管理器版本号
 
 # 颜色配置
 RED_COLOR='\e[1;31m'
@@ -2486,3 +2486,8 @@ main() {
 
 # 执行主程序
 main "$@"
+
+# 调试日志函数，自动输出到 /tmp/openlist_update_debug.log 并同步到控制台
+log_debug() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a /tmp/openlist_update_debug.log
+}
