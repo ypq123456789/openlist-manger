@@ -7,7 +7,7 @@ log_debug() {
 #
 # OpenList Interactive Manager Script
 #
-# Version: 1.6.9
+# Version: 1.7.0
 # Last Updated: 2025-06-23
 #
 # Description:
@@ -31,7 +31,7 @@ log_debug() {
 GITHUB_REPO="OpenListTeam/OpenList"
 VERSION_TAG="beta"
 VERSION_FILE="/opt/openlist/.version"
-MANAGER_VERSION="1.6.9"  # 更新管理器版本号
+MANAGER_VERSION="1.7.0"  # 更新管理器版本号
 
 # 颜色配置
 RED_COLOR='\e[1;31m'
@@ -342,40 +342,32 @@ EOF
 
 # 启动服务（跨平台）
 start_service() {
-    case "$OS_TYPE" in
-        "linux"|"windows")
-            if [[ "$SYSTEMD_AVAILABLE" == "true" ]]; then
-                systemctl start openlist
-            else
-                echo -e "${YELLOW_COLOR}请手动启动服务${RES}"
-            fi
-            ;;
-        "macos")
-            launchctl load /Library/LaunchDaemons/com.openlist.plist
-            ;;
-        "termux")
-            echo -e "${YELLOW_COLOR}请手动启动服务${RES}"
-            ;;
-    esac
+    log_debug "尝试启动 openlist 服务"
+    if systemctl start openlist; then
+        log_debug "systemctl start openlist 成功"
+    else
+        log_debug "systemctl start openlist 失败，返回码: $?"
+    fi
+    sleep 2
+    log_debug "systemctl status openlist 输出："
+    systemctl status openlist 2>&1 | tee -a /tmp/openlist_update_debug.log
+    log_debug "openlist 相关进程："
+    ps -ef | grep openlist | grep -v grep | tee -a /tmp/openlist_update_debug.log
 }
 
 # 停止服务（跨平台）
 stop_service() {
-    case "$OS_TYPE" in
-        "linux"|"windows")
-            if [[ "$SYSTEMD_AVAILABLE" == "true" ]]; then
-                systemctl stop openlist
-            else
-                echo -e "${YELLOW_COLOR}请手动停止服务${RES}"
-            fi
-            ;;
-        "macos")
-            launchctl unload /Library/LaunchDaemons/com.openlist.plist
-            ;;
-        "termux")
-            echo -e "${YELLOW_COLOR}请手动停止服务${RES}"
-            ;;
-    esac
+    log_debug "尝试停止 openlist 服务"
+    if systemctl stop openlist; then
+        log_debug "systemctl stop openlist 成功"
+    else
+        log_debug "systemctl stop openlist 失败，返回码: $?"
+    fi
+    sleep 2
+    log_debug "systemctl status openlist 输出："
+    systemctl status openlist 2>&1 | tee -a /tmp/openlist_update_debug.log
+    log_debug "openlist 相关进程："
+    ps -ef | grep openlist | grep -v grep | tee -a /tmp/openlist_update_debug.log
 }
 
 # 检查服务状态（跨平台）
@@ -2126,6 +2118,10 @@ non_interactive_update() {
         rm -f /tmp/openlist.tar.gz /tmp/openlist.bak
         log_debug "已清理临时文件"
         log_debug "自动更新成功: $latest_release"
+        log_debug "重启后 openlist 进程："
+        ps -ef | grep openlist | grep -v grep | tee -a /tmp/openlist_update_debug.log
+        log_debug "重启后 systemctl status openlist："
+        systemctl status openlist 2>&1 | tee -a /tmp/openlist_update_debug.log
         return 0
     elif [ "$mode" = "docker" ]; then
         log_debug "进入 Docker 自动更新流程"
