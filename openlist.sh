@@ -3,8 +3,8 @@
 #
 # OpenList Interactive Manager Script
 #
-# Version: 1.6.6
-# Last Updated: 2025-06-22
+# Version: 1.6.7
+# Last Updated: 2025-06-23
 #
 # Description:
 #   An interactive management script for OpenList
@@ -27,7 +27,7 @@
 GITHUB_REPO="OpenListTeam/OpenList"
 VERSION_TAG="beta"
 VERSION_FILE="/opt/openlist/.version"
-MANAGER_VERSION="1.6.6"  # 更新管理器版本号
+MANAGER_VERSION="1.6.7"  # 更新管理器版本号
 
 # 颜色配置
 RED_COLOR='\e[1;31m'
@@ -2049,111 +2049,105 @@ CRON_MARK_DOCKER='# OpenList Docker自动更新'
 
 # 非交互式更新函数
 non_interactive_update() {
+    log_debug "==== 非交互式自动更新开始，参数: $@ ===="
     local mode=$1
+    log_debug "模式: $mode"
     
     if [ "$mode" = "bin" ]; then
-        # 非交互式二进制更新
+        log_debug "进入二进制自动更新流程"
         if [ ! -f "$INSTALL_PATH/openlist" ]; then
-            echo "OpenList 未安装，跳过更新"
+            log_debug "OpenList 未安装，跳过更新"
             return 1
         fi
         
-        # 获取最新正式版 release
         local latest_release=$(curl -s https://api.github.com/repos/OpenListTeam/OpenList/releases/latest | grep 'tag_name' | head -1 | cut -d '"' -f4)
+        log_debug "获取到最新 release: $latest_release"
         if [ -z "$latest_release" ]; then
-            echo "无法获取最新版本，跳过更新"
+            log_debug "无法获取最新版本，跳过更新"
             return 1
         fi
         
-        # 检查当前版本
         local current_version="beta"
         if [ -f "$VERSION_FILE" ]; then
             current_version=$(head -n1 "$VERSION_FILE" 2>/dev/null || echo "beta")
         fi
+        log_debug "当前版本: $current_version"
         
         if [ "$latest_release" = "$current_version" ]; then
-            echo "当前已是最新版本: $current_version"
+            log_debug "当前已是最新版本: $current_version"
             return 0
         fi
         
-        echo "开始自动更新到: $latest_release"
-        
-        # 停止服务
+        log_debug "开始自动更新到: $latest_release"
         stop_service
+        log_debug "已执行 stop_service，返回码: $?"
         
-        # 下载新版本
         local download_url="https://github.com/${GITHUB_REPO}/releases/download/${latest_release}/openlist-linux-$ARCH.tar.gz"
+        log_debug "下载地址: $download_url"
         if ! download_file "$download_url" "/tmp/openlist.tar.gz"; then
-            echo "下载失败，恢复服务"
+            log_debug "下载失败，恢复服务"
             start_service
+            log_debug "已执行 start_service，返回码: $?"
             return 1
         fi
+        log_debug "下载成功"
         
-        # 备份
         cp "$INSTALL_PATH/openlist" "/tmp/openlist.bak"
+        log_debug "已备份旧文件"
         
-        # 解压
         if ! tar zxf /tmp/openlist.tar.gz -C "$INSTALL_PATH/"; then
-            echo "解压失败，恢复服务"
+            log_debug "解压失败，恢复服务"
             mv "/tmp/openlist.bak" "$INSTALL_PATH/openlist"
             start_service
+            log_debug "已恢复旧文件并重启服务"
             rm -f /tmp/openlist.tar.gz
             return 1
         fi
+        log_debug "解压成功"
         
-        # 验证更新
         if [ ! -f "$INSTALL_PATH/openlist" ]; then
-            echo "更新失败，恢复服务"
+            log_debug "更新失败，恢复服务"
             mv "/tmp/openlist.bak" "$INSTALL_PATH/openlist"
             start_service
             return 1
         fi
-        
-        # 设置权限
+        log_debug "新文件存在，准备设置权限"
         chmod +x "$INSTALL_PATH/openlist"
-        
-        # 更新版本信息
+        log_debug "已设置权限"
         echo "$latest_release" > "$VERSION_FILE"
         echo "$(date '+%Y-%m-%d %H:%M:%S')" >> "$VERSION_FILE"
-        
-        # 启动服务
+        log_debug "已写入版本信息"
         start_service
-        
-        # 清理文件
+        log_debug "已执行 start_service，返回码: $?"
         rm -f /tmp/openlist.tar.gz /tmp/openlist.bak
-        
-        echo "自动更新成功: $latest_release"
+        log_debug "已清理临时文件"
+        log_debug "自动更新成功: $latest_release"
         return 0
-        
     elif [ "$mode" = "docker" ]; then
-        # 非交互式 Docker 更新
+        log_debug "进入 Docker 自动更新流程"
         if ! command -v docker >/dev/null 2>&1; then
-            echo "Docker 未安装，跳过更新"
+            log_debug "Docker 未安装，跳过更新"
             return 1
         fi
-        
         local cname=$(find_openlist_container_name)
+        log_debug "容器名: $cname"
         if [ -z "$cname" ]; then
-            echo "未找到 OpenList 容器，跳过更新"
+            log_debug "未找到 OpenList 容器，跳过更新"
             return 1
         fi
-        
-        echo "开始自动更新 Docker 容器"
-        
-        # 拉取最新镜像
+        log_debug "开始自动更新 Docker 容器"
         docker pull ghcr.io/openlistteam/openlist-git:beta
-        
-        # 停止并删除旧容器
+        log_debug "已拉取镜像，返回码: $?"
         docker stop "$cname"
+        log_debug "已停止容器，返回码: $?"
         docker rm "$cname"
-        
-        # 创建新容器
+        log_debug "已删除容器，返回码: $?"
         docker run -d --name openlist -p 5244:5244 --restart unless-stopped ghcr.io/openlistteam/openlist-git:beta
-        
-        echo "Docker 自动更新成功"
+        log_debug "已创建新容器，返回码: $?"
+        log_debug "Docker 自动更新成功"
         return 0
     fi
-    
+    log_debug "未知模式: $mode，退出"
     return 1
 }
 
