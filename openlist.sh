@@ -7,8 +7,8 @@ log_debug() {
 #
 # OpenList Interactive Manager Script
 #
-# Version: 1.7.0
-# Last Updated: 2025-06-23
+# Version: 1.7.1
+# Last Updated: 2025-06-27
 #
 # Description:
 #   An interactive management script for OpenList
@@ -343,31 +343,71 @@ EOF
 # 启动服务（跨平台）
 start_service() {
     log_debug "尝试启动 openlist 服务"
-    if systemctl start openlist; then
-        log_debug "systemctl start openlist 成功"
-    else
-        log_debug "systemctl start openlist 失败，返回码: $?"
-    fi
-    sleep 2
-    log_debug "systemctl status openlist 输出："
-    systemctl status openlist 2>&1 | tee -a /tmp/openlist_update_debug.log
-    log_debug "openlist 相关进程："
-    ps -ef | grep openlist | grep -v grep | tee -a /tmp/openlist_update_debug.log
+    case "$OS_TYPE" in
+        "linux"|"windows")
+            if [[ "$SYSTEMD_AVAILABLE" == "true" ]]; then
+                if systemctl start openlist; then
+                    log_debug "systemctl start openlist 成功"
+                else
+                    log_debug "systemctl start openlist 失败，返回码: $?"
+                fi
+                sleep 2
+                log_debug "systemctl status openlist 输出："
+                systemctl status openlist 2>&1 | tee -a /tmp/openlist_update_debug.log
+                log_debug "openlist 相关进程："
+                ps -ef | grep openlist | grep -v grep | tee -a /tmp/openlist_update_debug.log
+            else
+                log_debug "systemd 不可用，请手动启动服务"
+                echo -e "${YELLOW_COLOR}请手动启动服务${RES}"
+            fi
+            ;;
+        "macos")
+            if launchctl load /Library/LaunchDaemons/com.openlist.plist; then
+                log_debug "launchctl load 成功"
+            else
+                log_debug "launchctl load 失败，返回码: $?"
+            fi
+            ;;
+        "termux")
+            log_debug "Termux 环境，请手动启动服务"
+            echo -e "${YELLOW_COLOR}请手动启动服务${RES}"
+            ;;
+    esac
 }
 
 # 停止服务（跨平台）
 stop_service() {
     log_debug "尝试停止 openlist 服务"
-    if systemctl stop openlist; then
-        log_debug "systemctl stop openlist 成功"
-    else
-        log_debug "systemctl stop openlist 失败，返回码: $?"
-    fi
-    sleep 2
-    log_debug "systemctl status openlist 输出："
-    systemctl status openlist 2>&1 | tee -a /tmp/openlist_update_debug.log
-    log_debug "openlist 相关进程："
-    ps -ef | grep openlist | grep -v grep | tee -a /tmp/openlist_update_debug.log
+    case "$OS_TYPE" in
+        "linux"|"windows")
+            if [[ "$SYSTEMD_AVAILABLE" == "true" ]]; then
+                if systemctl stop openlist; then
+                    log_debug "systemctl stop openlist 成功"
+                else
+                    log_debug "systemctl stop openlist 失败，返回码: $?"
+                fi
+                sleep 2
+                log_debug "systemctl status openlist 输出："
+                systemctl status openlist 2>&1 | tee -a /tmp/openlist_update_debug.log
+                log_debug "openlist 相关进程："
+                ps -ef | grep openlist | grep -v grep | tee -a /tmp/openlist_update_debug.log
+            else
+                log_debug "systemd 不可用，请手动停止服务"
+                echo -e "${YELLOW_COLOR}请手动停止服务${RES}"
+            fi
+            ;;
+        "macos")
+            if launchctl unload /Library/LaunchDaemons/com.openlist.plist; then
+                log_debug "launchctl unload 成功"
+            else
+                log_debug "launchctl unload 失败，返回码: $?"
+            fi
+            ;;
+        "termux")
+            log_debug "Termux 环境，请手动停止服务"
+            echo -e "${YELLOW_COLOR}请手动停止服务${RES}"
+            ;;
+    esac
 }
 
 # 检查服务状态（跨平台）
@@ -2056,10 +2096,24 @@ non_interactive_update() {
             return 1
         fi
         
+        # 检查网络连接
+        log_debug "检查网络连接..."
+        if ! curl -s --connect-timeout 10 https://api.github.com >/dev/null 2>&1; then
+            log_debug "网络连接失败，跳过更新"
+            return 1
+        fi
+        log_debug "网络连接正常"
+        
         local latest_release=$(curl -s https://api.github.com/repos/OpenListTeam/OpenList/releases/latest | grep 'tag_name' | head -1 | cut -d '"' -f4)
         log_debug "获取到最新 release: $latest_release"
         if [ -z "$latest_release" ]; then
             log_debug "无法获取最新版本，跳过更新"
+            return 1
+        fi
+        
+        # 验证版本格式
+        if [[ ! "$latest_release" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            log_debug "版本格式无效: $latest_release，跳过更新"
             return 1
         fi
         
@@ -2069,10 +2123,28 @@ non_interactive_update() {
         fi
         log_debug "当前版本: $current_version"
         
-        if [ "$latest_release" = "$current_version" ]; then
-            log_debug "当前已是最新版本: $current_version"
-            return 0
+        # 检查实际运行版本
+        local running_version=""
+        if [ -f "$INSTALL_PATH/openlist" ]; then
+            running_version=$("$INSTALL_PATH/openlist" version 2>/dev/null | grep "Version:" | awk '{print $2}' || echo "unknown")
+            log_debug "实际运行版本: $running_version"
         fi
+        
+        if [ "$latest_release" = "$current_version" ] && [ "$latest_release" = "$running_version" ]; then
+            log_debug "当前已是最新版本: $current_version，无需重启服务"
+            return 0
+        elif [ "$latest_release" = "$current_version" ] && [ "$latest_release" != "$running_version" ]; then
+            log_debug "版本文件显示已是最新，但实际运行版本不同，需要重启服务"
+        fi
+        
+        # 检查磁盘空间
+        local required_space=50  # 50MB
+        local available_space=$(df "$INSTALL_PATH" | awk 'NR==2 {print $4}')
+        if [ "$available_space" -lt "$((required_space * 1024))" ]; then
+            log_debug "磁盘空间不足，需要 ${required_space}MB，可用 ${available_space}KB"
+            return 1
+        fi
+        log_debug "磁盘空间充足: ${available_space}KB"
         
         log_debug "开始自动更新到: $latest_release"
         stop_service
@@ -2080,13 +2152,27 @@ non_interactive_update() {
         
         local download_url="https://github.com/${GITHUB_REPO}/releases/download/${latest_release}/openlist-linux-$ARCH.tar.gz"
         log_debug "下载地址: $download_url"
-        if ! download_file "$download_url" "/tmp/openlist.tar.gz"; then
+        
+        # 增加重试机制
+        local retry_count=0
+        local max_retries=3
+        while [ $retry_count -lt $max_retries ]; do
+            if download_file "$download_url" "/tmp/openlist.tar.gz"; then
+                log_debug "下载成功"
+                break
+            else
+                retry_count=$((retry_count + 1))
+                log_debug "下载失败，重试 $retry_count/$max_retries"
+                sleep 2
+            fi
+        done
+        
+        if [ $retry_count -eq $max_retries ]; then
             log_debug "下载失败，恢复服务"
             start_service
             log_debug "已执行 start_service，返回码: $?"
             return 1
         fi
-        log_debug "下载成功"
         
         cp "$INSTALL_PATH/openlist" "/tmp/openlist.bak"
         log_debug "已备份旧文件"
