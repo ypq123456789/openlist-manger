@@ -31,7 +31,7 @@ log_debug() {
 GITHUB_REPO="OpenListTeam/OpenList"
 VERSION_TAG="beta"
 VERSION_FILE="/opt/openlist/.version"
-MANAGER_VERSION="1.7.0"  # 更新管理器版本号
+MANAGER_VERSION="1.7.1"  # 更新管理器版本号
 
 # 颜色配置
 RED_COLOR='\e[1;31m'
