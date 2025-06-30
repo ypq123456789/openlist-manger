@@ -7,7 +7,7 @@ log_debug() {
 #
 # OpenList Interactive Manager Script
 #
-# Version: 1.7.1
+# Version: 1.7.2
 # Last Updated: 2025-06-30
 #
 # Description:
@@ -31,7 +31,7 @@ log_debug() {
 GITHUB_REPO="OpenListTeam/OpenList"
 VERSION_TAG="beta"
 VERSION_FILE="/opt/openlist/.version"
-MANAGER_VERSION="1.7.1"  # 更新管理器版本号
+MANAGER_VERSION="1.7.2"  # 更新管理器版本号
 
 # 颜色配置
 RED_COLOR='\e[1;31m'
@@ -2206,6 +2206,25 @@ if [ -z "$restart_count" ]; then
 fi
 if [ "$restart_count" -lt 1 ]; then
     log_debug "版本 $latest_release 首次重启服务"
+    # 在 non_interactive_update 的 bin 分支，写入新版本号和首次重启后，增加如下逻辑：
+# 校验 API 真实运行版本，确保服务已加载新二进制
+bin_version=$("$INSTALL_PATH/openlist" version 2>/dev/null | grep Version: | awk '{print $2}')
+api_version=$(curl -s http://127.0.0.1:5244/api/public/settings | grep -o '"version":"[^\"]*"' | cut -d':' -f2 | tr -d '"')
+if [ "$bin_version" != "$api_version" ]; then
+    log_debug "二进制版本($bin_version)与API版本($api_version)不一致，重启服务"
+    stop_service
+    start_service
+    sleep 3
+    api_version_new=$(curl -s http://127.0.0.1:5244/api/public/settings | grep -o '"version":"[^\"]*"' | cut -d':' -f2 | tr -d '"')
+    if [ "$bin_version" = "$api_version_new" ]; then
+        log_debug "重启后版本一致，升级成功"
+    else
+        log_debug "重启后版本依然不一致，请手动排查"
+    fi
+else
+    log_debug "二进制版本与API版本一致，无需再次重启"
+fi
+# 其余流程保持不变
     stop_service
     start_service
     if grep -q "^$latest_release:" "$RESTART_LOG" 2>/dev/null; then
