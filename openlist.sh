@@ -7,7 +7,7 @@ log_debug() {
 #
 # OpenList Interactive Manager Script
 #
-# Version: 1.7.7
+# Version: 1.7.8
 # Last Updated: 2025-06-30
 #
 # Description:
@@ -31,7 +31,7 @@ log_debug() {
 GITHUB_REPO="OpenListTeam/OpenList"
 VERSION_TAG="beta"
 VERSION_FILE="/opt/openlist/.version"
-MANAGER_VERSION="1.7.7"  # 每次更新脚本都要更新管理器版本号
+MANAGER_VERSION="1.7.8"  # 每次更新脚本都要更新管理器版本号
 
 # 颜色配置
 RED_COLOR='\e[1;31m'
@@ -2141,7 +2141,72 @@ non_interactive_update() {
         # 以API版本和最新release为准
         if [ "$api_version" != "$latest_release" ]; then
             log_debug "API版本($api_version)落后于最新release($latest_release)，执行自动更新"
-            # ...后续下载、解压、重启逻辑保持不变...
+            # 检查磁盘空间
+            local required_space=50  # 50MB
+            local available_space=$(df "$INSTALL_PATH" | awk 'NR==2 {print $4}')
+            if [ "$available_space" -lt "$((required_space * 1024))" ]; then
+                log_debug "磁盘空间不足，需要 ${required_space}MB，可用 ${available_space}KB"
+                return 1
+            fi
+            log_debug "磁盘空间充足: ${available_space}KB"
+            # 下载
+            log_debug "开始自动更新到: $latest_release"
+            stop_service
+            log_debug "已执行 stop_service，返回码: $?"
+            local download_url="https://github.com/${GITHUB_REPO}/releases/download/${latest_release}/openlist-linux-$ARCH.tar.gz"
+            log_debug "下载地址: $download_url"
+            # 增加重试机制
+            local retry_count=0
+            local max_retries=3
+            while [ $retry_count -lt $max_retries ]; do
+                if download_file "$download_url" "/tmp/openlist.tar.gz"; then
+                    log_debug "下载成功"
+                    break
+                else
+                    retry_count=$((retry_count + 1))
+                    log_debug "下载失败，重试 $retry_count/$max_retries"
+                    sleep 2
+                fi
+            done
+            if [ $retry_count -eq $max_retries ]; then
+                log_debug "下载失败，恢复服务"
+                start_service
+                log_debug "已执行 start_service，返回码: $?"
+                return 1
+            fi
+            cp "$INSTALL_PATH/openlist" "/tmp/openlist.bak"
+            log_debug "已备份旧文件"
+            if ! tar zxf /tmp/openlist.tar.gz -C "$INSTALL_PATH/"; then
+                log_debug "解压失败，恢复服务"
+                mv "/tmp/openlist.bak" "$INSTALL_PATH/openlist"
+                start_service
+                log_debug "已恢复旧文件并重启服务"
+                rm -f /tmp/openlist.tar.gz
+                return 1
+            fi
+            log_debug "解压成功"
+            if [ ! -f "$INSTALL_PATH/openlist" ]; then
+                log_debug "更新失败，恢复服务"
+                mv "/tmp/openlist.bak" "$INSTALL_PATH/openlist"
+                start_service
+                return 1
+            fi
+            log_debug "新文件存在，准备设置权限"
+            chmod +x "$INSTALL_PATH/openlist"
+            log_debug "已设置权限"
+            echo "$latest_release" > "$VERSION_FILE"
+            echo "$(date '+%Y-%m-%d %H:%M:%S')" >> "$VERSION_FILE"
+            log_debug "已写入版本信息"
+            start_service
+            log_debug "已执行 start_service，返回码: $?"
+            rm -f /tmp/openlist.tar.gz /tmp/openlist.bak
+            log_debug "已清理临时文件"
+            log_debug "自动更新成功: $latest_release"
+            log_debug "重启后 openlist 进程："
+            ps -ef | grep openlist | grep -v grep | tee -a /tmp/openlist_update_debug.log
+            log_debug "重启后 systemctl status openlist："
+            systemctl status openlist 2>&1 | tee -a /tmp/openlist_update_debug.log
+            return 0
         else
             log_debug "API版本已是最新release($latest_release)，无需更新"
             return 0
