@@ -7,7 +7,7 @@ log_debug() {
 #
 # OpenList Interactive Manager Script
 #
-# Version: 1.7.2
+# Version: 1.7.3
 # Last Updated: 2025-06-30
 #
 # Description:
@@ -31,7 +31,7 @@ log_debug() {
 GITHUB_REPO="OpenListTeam/OpenList"
 VERSION_TAG="beta"
 VERSION_FILE="/opt/openlist/.version"
-MANAGER_VERSION="1.7.2"  # 更新管理器版本号
+MANAGER_VERSION="1.7.3"  # 每次更新脚本都要更新管理器版本号
 
 # 颜色配置
 RED_COLOR='\e[1;31m'
@@ -987,19 +987,18 @@ update_openlist() {
     
     # 显示当前版本
     if [ -f "$VERSION_FILE" ]; then
-        echo -e "${BLUE_COLOR}当前版本信息：${RES}"
-        cat "$VERSION_FILE"
-        echo
-    fi
-    
-    # 获取版本标签
-    if [ -f "$VERSION_FILE" ]; then
-        VERSION_TAG=$(head -n1 "$VERSION_FILE" 2>/dev/null || echo "beta")
+        echo -e "${BLUE_COLOR}当前二进制文件版本：${RES}$(head -n1 "$VERSION_FILE" 2>/dev/null)"
+        echo -e "${BLUE_COLOR}二进制文件安装时间：${RES}$(tail -n1 "$VERSION_FILE" 2>/dev/null)"
     else
-        VERSION_TAG="beta"
+        echo -e "${YELLOW_COLOR}二进制文件版本信息：未知${RES}"
     fi
-    
-    echo -e "${BLUE_COLOR}当前使用版本：${RES}$VERSION_TAG"
+    local api_version
+    api_version=$(get_api_version)
+    if [ "$api_version" = "unavailable" ]; then
+        echo -e "${RED_COLOR}API 版本信息：无法获取（服务未运行或端口未监听）${RES}"
+    else
+        echo -e "${BLUE_COLOR}服务实际运行版本（API）：${RES}$api_version"
+    fi
     echo
     echo -e "${GREEN_COLOR}1${RES} - 更新到正式版最新版本"
     echo -e "${GREEN_COLOR}2${RES} - 更新到开发版最新版本"
@@ -1203,10 +1202,17 @@ show_status() {
         if [ -f "$VERSION_FILE" ]; then
             local version=$(head -n1 "$VERSION_FILE" 2>/dev/null)
             local install_time=$(tail -n1 "$VERSION_FILE" 2>/dev/null)
-            echo -e "${BLUE_COLOR}● 当前版本：${RES}$version"
+            echo -e "${BLUE_COLOR}● 二进制文件版本：${RES}$version"
             echo -e "${BLUE_COLOR}● 安装时间：${RES}$install_time"
         else
-            echo -e "${YELLOW_COLOR}● 版本信息：未知${RES}"
+            echo -e "${YELLOW_COLOR}● 二进制文件版本信息：未知${RES}"
+        fi
+        local api_version
+        api_version=$(get_api_version)
+        if [ "$api_version" = "unavailable" ]; then
+            echo -e "${RED_COLOR}● 服务实际运行版本（API）：无法获取（服务未运行或端口未监听）${RES}"
+        else
+            echo -e "${BLUE_COLOR}● 服务实际运行版本（API）：${RES}$api_version"
         fi
         
         # 显示文件信息
@@ -2609,4 +2615,15 @@ main() {
 
 # 执行主程序
 main "$@"
+
+# ========== 新增：通过API获取实际运行版本 ==========
+get_api_version() {
+    local api_version
+    api_version=$(curl -s --max-time 2 http://127.0.0.1:5244/api/public/settings | grep -o '"version":"[^"]*"' | cut -d':' -f2 | tr -d '"')
+    if [ -z "$api_version" ]; then
+        echo "unavailable"
+    else
+        echo "$api_version"
+    fi
+}
 
