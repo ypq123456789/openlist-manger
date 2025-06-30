@@ -7,7 +7,7 @@ log_debug() {
 #
 # OpenList Interactive Manager Script
 #
-# Version: 1.7.9
+# Version: 1.8.0
 # Last Updated: 2025-06-30
 #
 # Description:
@@ -31,7 +31,7 @@ log_debug() {
 GITHUB_REPO="OpenListTeam/OpenList"
 VERSION_TAG="beta"
 VERSION_FILE="/opt/openlist/.version"
-MANAGER_VERSION="1.7.9"  # 每次更新脚本都要更新管理器版本号
+MANAGER_VERSION="1.8.0"  # 每次更新脚本都要更新管理器版本号
 
 # 颜色配置
 RED_COLOR='\e[1;31m'
@@ -51,6 +51,13 @@ get_api_version() {
     else
         echo "$api_version"
     fi
+}
+
+# ========== 新增：统一重启服务 ==========
+restart_service() {
+    log_debug "尝试重启 openlist 服务"
+    systemctl restart openlist
+    sleep 3
 }
 
 # ===================== 跨平台系统检测 =====================
@@ -2574,6 +2581,8 @@ main() {
 
 # 执行主程序
 main "$@"
+
+
 
 
 
