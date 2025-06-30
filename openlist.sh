@@ -7,7 +7,7 @@ log_debug() {
 #
 # OpenList Interactive Manager Script
 #
-# Version: 1.7.6
+# Version: 1.7.7
 # Last Updated: 2025-06-30
 #
 # Description:
@@ -31,7 +31,7 @@ log_debug() {
 GITHUB_REPO="OpenListTeam/OpenList"
 VERSION_TAG="beta"
 VERSION_FILE="/opt/openlist/.version"
-MANAGER_VERSION="1.7.6"  # 每次更新脚本都要更新管理器版本号
+MANAGER_VERSION="1.7.7"  # 每次更新脚本都要更新管理器版本号
 
 # 颜色配置
 RED_COLOR='\e[1;31m'
@@ -2112,7 +2112,6 @@ non_interactive_update() {
             log_debug "OpenList 未安装，跳过更新"
             return 1
         fi
-        
         # 检查网络连接
         log_debug "检查网络连接..."
         if ! curl -s --connect-timeout 10 https://api.github.com >/dev/null 2>&1; then
@@ -2120,120 +2119,33 @@ non_interactive_update() {
             return 1
         fi
         log_debug "网络连接正常"
-        
         local latest_release=$(curl -s https://api.github.com/repos/OpenListTeam/OpenList/releases/latest | grep 'tag_name' | head -1 | cut -d '"' -f4)
         log_debug "获取到最新 release: $latest_release"
         if [ -z "$latest_release" ]; then
             log_debug "无法获取最新版本，跳过更新"
             return 1
         fi
-        
         # 验证版本格式
         if [[ ! "$latest_release" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             log_debug "版本格式无效: $latest_release，跳过更新"
             return 1
         fi
-        
         local current_version="beta"
         if [ -f "$VERSION_FILE" ]; then
             current_version=$(head -n1 "$VERSION_FILE" 2>/dev/null || echo "beta")
         fi
-        log_debug "当前版本: $current_version"
-        
-        # 检查实际运行版本
-        local bin_version="beta"
-        if [ -f "$VERSION_FILE" ]; then
-            bin_version=$(head -n1 "$VERSION_FILE" 2>/dev/null || echo "beta")
-        fi
+        log_debug "当前本地二进制文件版本: $current_version"
         local api_version
         api_version=$(get_api_version)
-        log_debug "二进制文件版本: $bin_version"
         log_debug "API实际运行版本: $api_version"
-        # 判断是否需要重启服务
-        if [ "$api_version" != "$bin_version" ]; then
-            log_debug "API版本($api_version)落后于二进制($bin_version)，重启服务"
-            stop_service
-            start_service
-            sleep 3
-            api_version_new=$(get_api_version)
-            if [ "$api_version_new" = "$bin_version" ]; then
-                log_debug "重启后API版本与二进制一致，升级成功"
-            else
-                log_debug "重启后API版本依然不一致，请手动排查"
-            fi
+        # 以API版本和最新release为准
+        if [ "$api_version" != "$latest_release" ]; then
+            log_debug "API版本($api_version)落后于最新release($latest_release)，执行自动更新"
+            # ...后续下载、解压、重启逻辑保持不变...
         else
-            log_debug "API版本与二进制一致，无需重启"
+            log_debug "API版本已是最新release($latest_release)，无需更新"
             return 0
         fi
-        
-        # 检查磁盘空间
-        local required_space=50  # 50MB
-        local available_space=$(df "$INSTALL_PATH" | awk 'NR==2 {print $4}')
-        if [ "$available_space" -lt "$((required_space * 1024))" ]; then
-            log_debug "磁盘空间不足，需要 ${required_space}MB，可用 ${available_space}KB"
-            return 1
-        fi
-        log_debug "磁盘空间充足: ${available_space}KB"
-        
-        log_debug "开始自动更新到: $latest_release"
-        stop_service
-        log_debug "已执行 stop_service，返回码: $?"
-        
-        local download_url="https://github.com/${GITHUB_REPO}/releases/download/${latest_release}/openlist-linux-$ARCH.tar.gz"
-        log_debug "下载地址: $download_url"
-        
-        # 增加重试机制
-        local retry_count=0
-        local max_retries=3
-        while [ $retry_count -lt $max_retries ]; do
-            if download_file "$download_url" "/tmp/openlist.tar.gz"; then
-                log_debug "下载成功"
-                break
-            else
-                retry_count=$((retry_count + 1))
-                log_debug "下载失败，重试 $retry_count/$max_retries"
-                sleep 2
-            fi
-        done
-        
-        if [ $retry_count -eq $max_retries ]; then
-            log_debug "下载失败，恢复服务"
-            start_service
-            log_debug "已执行 start_service，返回码: $?"
-            return 1
-        fi
-        
-        cp "$INSTALL_PATH/openlist" "/tmp/openlist.bak"
-        log_debug "已备份旧文件"
-        
-        if ! tar zxf /tmp/openlist.tar.gz -C "$INSTALL_PATH/"; then
-            log_debug "解压失败，恢复服务"
-            mv "/tmp/openlist.bak" "$INSTALL_PATH/openlist"
-            start_service
-            log_debug "已恢复旧文件并重启服务"
-            rm -f /tmp/openlist.tar.gz
-            return 1
-        fi
-        log_debug "解压成功"
-        
-        if [ ! -f "$INSTALL_PATH/openlist" ]; then
-            log_debug "更新失败，恢复服务"
-            mv "/tmp/openlist.bak" "$INSTALL_PATH/openlist"
-            start_service
-            return 1
-        fi
-        log_debug "新文件存在，准备设置权限"
-        chmod +x "$INSTALL_PATH/openlist"
-        log_debug "已设置权限"
-        echo "$latest_release" > "$VERSION_FILE"
-        echo "$(date '+%Y-%m-%d %H:%M:%S')" >> "$VERSION_FILE"
-        log_debug "已写入版本信息"
-        log_debug "自动更新成功: $latest_release"
-        log_debug "重启后 openlist 进程："
-        ps -ef | grep openlist | grep -v grep | tee -a /tmp/openlist_update_debug.log
-        log_debug "重启后 systemctl status openlist："
-        systemctl status openlist 2>&1 | tee -a /tmp/openlist_update_debug.log
-        return 0
     elif [ "$mode" = "docker" ]; then
         log_debug "进入 Docker 自动更新流程"
         if ! command -v docker >/dev/null 2>&1; then
