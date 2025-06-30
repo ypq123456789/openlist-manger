@@ -7,7 +7,7 @@ log_debug() {
 #
 # OpenList Interactive Manager Script
 #
-# Version: 1.7.5
+# Version: 1.7.6
 # Last Updated: 2025-06-30
 #
 # Description:
@@ -31,7 +31,7 @@ log_debug() {
 GITHUB_REPO="OpenListTeam/OpenList"
 VERSION_TAG="beta"
 VERSION_FILE="/opt/openlist/.version"
-MANAGER_VERSION="1.7.5"  # 每次更新脚本都要更新管理器版本号
+MANAGER_VERSION="1.7.6"  # 每次更新脚本都要更新管理器版本号
 
 # 颜色配置
 RED_COLOR='\e[1;31m'
@@ -2163,6 +2163,7 @@ non_interactive_update() {
             fi
         else
             log_debug "API版本与二进制一致，无需重启"
+            return 0
         fi
         
         # 检查磁盘空间
@@ -2227,47 +2228,6 @@ non_interactive_update() {
         echo "$latest_release" > "$VERSION_FILE"
         echo "$(date '+%Y-%m-%d %H:%M:%S')" >> "$VERSION_FILE"
         log_debug "已写入版本信息"
-        RESTART_LOG="$INSTALL_PATH/.restart.log"
-restart_count=$(grep "^$latest_release:" "$RESTART_LOG" 2>/dev/null | cut -d: -f2)
-if [ -z "$restart_count" ]; then
-    restart_count=0
-fi
-if [ "$restart_count" -lt 1 ]; then
-    log_debug "版本 $latest_release 首次重启服务"
-    # 在 non_interactive_update 的 bin 分支，写入新版本号和首次重启后，增加如下逻辑：
-# 校验 API 真实运行版本，确保服务已加载新二进制
-bin_version=$("$INSTALL_PATH/openlist" version 2>/dev/null | grep Version: | awk '{print $2}')
-api_version=$(curl -s http://127.0.0.1:5244/api/public/settings | grep -o '"version":"[^\"]*"' | cut -d':' -f2 | tr -d '"')
-if [ "$bin_version" != "$api_version" ]; then
-    log_debug "二进制版本($bin_version)与API版本($api_version)不一致，重启服务"
-    stop_service
-    start_service
-    sleep 3
-    api_version_new=$(curl -s http://127.0.0.1:5244/api/public/settings | grep -o '"version":"[^\"]*"' | cut -d':' -f2 | tr -d '"')
-    if [ "$bin_version" = "$api_version_new" ]; then
-        log_debug "重启后版本一致，升级成功"
-    else
-        log_debug "重启后版本依然不一致，请手动排查"
-    fi
-else
-    log_debug "二进制版本与API版本一致，无需再次重启"
-fi
-# 其余流程保持不变
-    stop_service
-    start_service
-    if grep -q "^$latest_release:" "$RESTART_LOG" 2>/dev/null; then
-        sed -i "s/^$latest_release:.*/$latest_release:$((restart_count+1))/" "$RESTART_LOG"
-    else
-        echo "$latest_release:1" >> "$RESTART_LOG"
-    fi
-    log_debug "已为版本 $latest_release 执行首次重启"
-else
-    log_debug "版本 $latest_release 已重启过 $restart_count 次，无需再次重启"
-fi
-        start_service
-        log_debug "已执行 start_service，返回码: $?"
-        rm -f /tmp/openlist.tar.gz /tmp/openlist.bak
-        log_debug "已清理临时文件"
         log_debug "自动更新成功: $latest_release"
         log_debug "重启后 openlist 进程："
         ps -ef | grep openlist | grep -v grep | tee -a /tmp/openlist_update_debug.log
