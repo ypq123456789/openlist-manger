@@ -7,7 +7,7 @@ log_debug() {
 #
 # OpenList Interactive Manager Script
 #
-# Version: 1.7.8
+# Version: 1.7.9
 # Last Updated: 2025-06-30
 #
 # Description:
@@ -31,7 +31,7 @@ log_debug() {
 GITHUB_REPO="OpenListTeam/OpenList"
 VERSION_TAG="beta"
 VERSION_FILE="/opt/openlist/.version"
-MANAGER_VERSION="1.7.8"  # 每次更新脚本都要更新管理器版本号
+MANAGER_VERSION="1.7.9"  # 每次更新脚本都要更新管理器版本号
 
 # 颜色配置
 RED_COLOR='\e[1;31m'
@@ -2151,8 +2151,8 @@ non_interactive_update() {
             log_debug "磁盘空间充足: ${available_space}KB"
             # 下载
             log_debug "开始自动更新到: $latest_release"
-            stop_service
-            log_debug "已执行 stop_service，返回码: $?"
+            restart_service
+            log_debug "已执行 restart_service"
             local download_url="https://github.com/${GITHUB_REPO}/releases/download/${latest_release}/openlist-linux-$ARCH.tar.gz"
             log_debug "下载地址: $download_url"
             # 增加重试机制
@@ -2170,8 +2170,8 @@ non_interactive_update() {
             done
             if [ $retry_count -eq $max_retries ]; then
                 log_debug "下载失败，恢复服务"
-                start_service
-                log_debug "已执行 start_service，返回码: $?"
+                restart_service
+                log_debug "已执行 restart_service"
                 return 1
             fi
             cp "$INSTALL_PATH/openlist" "/tmp/openlist.bak"
@@ -2179,7 +2179,7 @@ non_interactive_update() {
             if ! tar zxf /tmp/openlist.tar.gz -C "$INSTALL_PATH/"; then
                 log_debug "解压失败，恢复服务"
                 mv "/tmp/openlist.bak" "$INSTALL_PATH/openlist"
-                start_service
+                restart_service
                 log_debug "已恢复旧文件并重启服务"
                 rm -f /tmp/openlist.tar.gz
                 return 1
@@ -2188,7 +2188,7 @@ non_interactive_update() {
             if [ ! -f "$INSTALL_PATH/openlist" ]; then
                 log_debug "更新失败，恢复服务"
                 mv "/tmp/openlist.bak" "$INSTALL_PATH/openlist"
-                start_service
+                restart_service
                 return 1
             fi
             log_debug "新文件存在，准备设置权限"
@@ -2197,8 +2197,8 @@ non_interactive_update() {
             echo "$latest_release" > "$VERSION_FILE"
             echo "$(date '+%Y-%m-%d %H:%M:%S')" >> "$VERSION_FILE"
             log_debug "已写入版本信息"
-            start_service
-            log_debug "已执行 start_service，返回码: $?"
+            restart_service
+            log_debug "已执行 restart_service"
             rm -f /tmp/openlist.tar.gz /tmp/openlist.bak
             log_debug "已清理临时文件"
             log_debug "自动更新成功: $latest_release"
