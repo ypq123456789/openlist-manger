@@ -7,7 +7,7 @@ log_debug() {
 #
 # OpenList Interactive Manager Script
 #
-# Version: 1.7.4
+# Version: 1.7.5
 # Last Updated: 2025-06-30
 #
 # Description:
@@ -31,7 +31,7 @@ log_debug() {
 GITHUB_REPO="OpenListTeam/OpenList"
 VERSION_TAG="beta"
 VERSION_FILE="/opt/openlist/.version"
-MANAGER_VERSION="1.7.4"  # 每次更新脚本都要更新管理器版本号
+MANAGER_VERSION="1.7.5"  # 每次更新脚本都要更新管理器版本号
 
 # 颜色配置
 RED_COLOR='\e[1;31m'
@@ -41,6 +41,17 @@ BLUE_COLOR='\e[1;34m'
 CYAN_COLOR='\e[1;36m'
 PURPLE_COLOR='\e[1;35m'
 RES='\e[0m'
+
+# ========== 新增：通过API获取实际运行版本 ==========
+get_api_version() {
+    local api_version
+    api_version=$(curl -s --max-time 2 http://127.0.0.1:5244/api/public/settings | grep -o '"version":"[^"]*"' | cut -d':' -f2 | tr -d '"')
+    if [ -z "$api_version" ]; then
+        echo "unavailable"
+    else
+        echo "$api_version"
+    fi
+}
 
 # ===================== 跨平台系统检测 =====================
 
@@ -2627,14 +2638,5 @@ main() {
 # 执行主程序
 main "$@"
 
-# ========== 新增：通过API获取实际运行版本 ==========
-get_api_version() {
-    local api_version
-    api_version=$(curl -s --max-time 2 http://127.0.0.1:5244/api/public/settings | grep -o '"version":"[^"]*"' | cut -d':' -f2 | tr -d '"')
-    if [ -z "$api_version" ]; then
-        echo "unavailable"
-    else
-        echo "$api_version"
-    fi
-}
+
 
