@@ -7,8 +7,8 @@ log_debug() {
 #
 # OpenList Interactive Manager Script
 #
-# Version: 1.8.0
-# Last Updated: 2025-06-30
+# Version: 1.8.1
+# Last Updated: 2025-07-06
 #
 # Description:
 #   An interactive management script for OpenList
@@ -31,7 +31,7 @@ log_debug() {
 GITHUB_REPO="OpenListTeam/OpenList"
 VERSION_TAG="beta"
 VERSION_FILE="/opt/openlist/.version"
-MANAGER_VERSION="1.8.0"  # 每次更新脚本都要更新管理器版本号
+MANAGER_VERSION="1.8.1"  # 每次更新脚本都要更新管理器版本号
 
 # 颜色配置
 RED_COLOR='\e[1;31m'
@@ -1971,6 +1971,7 @@ server {
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto \$scheme;
+        client_max_body_size 0;
     }
 }
 EOF
