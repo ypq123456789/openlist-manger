@@ -7,8 +7,8 @@ log_debug() {
 #
 # OpenList Interactive Manager Script
 #
-# Version: 1.8.1
-# Last Updated: 2025-07-06
+# Version: 1.8.2
+# Last Updated: 2025-08-06
 #
 # Description:
 #   An interactive management script for OpenList
@@ -31,7 +31,7 @@ log_debug() {
 GITHUB_REPO="OpenListTeam/OpenList"
 VERSION_TAG="beta"
 VERSION_FILE="/opt/openlist/.version"
-MANAGER_VERSION="1.8.1"  # 每次更新脚本都要更新管理器版本号
+MANAGER_VERSION="1.8.2"  # 每次更新脚本都要更新管理器版本号
 
 # 颜色配置
 RED_COLOR='\e[1;31m'
@@ -49,6 +49,11 @@ get_api_version() {
     if [ -z "$api_version" ]; then
         echo "unavailable"
     else
+        # 处理版本号中可能包含的额外信息（如Commit信息、Build信息等）
+        # 提取主要版本号部分，去掉括号等额外信息
+        # 格式示例：v4.1.0 (Commit: a5a22e70) - Frontend: v4.1.0 - Build at: 2025-07-31 09:04:25 +0000
+        # 只保留开头的版本号部分
+        api_version=$(echo "$api_version" | sed 's/(.*//' | sed 's/[[:space:]]*$//' | sed 's/-.*//' | sed 's/[[:space:]]*$//')
         echo "$api_version"
     fi
 }
