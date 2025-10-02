@@ -2498,31 +2498,32 @@ show_main_menu() {
         echo -e "${GREEN_COLOR}7${RES}  - 重启服务"
         echo -e "${GREEN_COLOR}8${RES}  - 查看状态"
         echo -e "${GREEN_COLOR}9${RES}  - 查看日志"
+        echo -e "${GREEN_COLOR}10${RES} - 管理管理员密码"
         echo
         echo -e "${PURPLE_COLOR}═══ Docker 管理 ═══${RES}"
-        echo -e "${GREEN_COLOR}10${RES} - Docker 一键安装/启动 OpenList"
-        echo -e "${GREEN_COLOR}11${RES} - 进入 OpenList 容器"
-        echo -e "${GREEN_COLOR}12${RES} - 容器内设置管理员密码"
-        echo -e "${GREEN_COLOR}13${RES} - 重启 OpenList 容器"
-        echo -e "${GREEN_COLOR}14${RES} - 查看容器状态"
-        echo -e "${GREEN_COLOR}15${RES} - 查看容器日志"
+        echo -e "${GREEN_COLOR}11${RES} - Docker 一键安装/启动 OpenList"
+        echo -e "${GREEN_COLOR}12${RES} - 进入 OpenList 容器"
+        echo -e "${GREEN_COLOR}13${RES} - 容器内设置管理员密码"
+        echo -e "${GREEN_COLOR}14${RES} - 重启 OpenList 容器"
+        echo -e "${GREEN_COLOR}15${RES} - 查看容器状态"
+        echo -e "${GREEN_COLOR}16${RES} - 查看容器日志"
         echo
         echo -e "${PURPLE_COLOR}═══ 域名绑定/反向代理 ═══${RES}"
-        echo -e "${GREEN_COLOR}16${RES} - 域名绑定/反代设置"
+        echo -e "${GREEN_COLOR}17${RES} - 域名绑定/反代设置"
         echo
         echo -e "${PURPLE_COLOR}═══ 定时自动更新 ═══${RES}"
-        echo -e "${GREEN_COLOR}17${RES} - 定时自动更新设置"
+        echo -e "${GREEN_COLOR}18${RES} - 定时自动更新设置"
         echo
         echo -e "${GREEN_COLOR}0${RES}  - 退出脚本"
         echo
         local choice
-        choice=$(default_read "请输入选项 [0-17] (默认0): " "0")
+        choice=$(default_read "请输入选项 [0-18] (默认0): " "0")
         echo -e "${YELLOW_COLOR}[调试] 输入的选项: '$choice'${RES}"
         if [ -z "$choice" ]; then
             choice=0
         fi
         if ! [[ "$choice" =~ ^[0-9]+$ ]]; then
-            echo -e "${RED_COLOR}请输入数字选项 [0-17]${RES}"
+            echo -e "${RED_COLOR}请输入数字选项 [0-18]${RES}"
             sleep 2
             continue
         fi
@@ -2536,14 +2537,15 @@ show_main_menu() {
             7) control_service restart "重启" ;;
             8) show_status ;;
             9) show_logs ;;
-            10) install_openlist_docker ;;
-            11) exec_openlist_docker ;;
-            12) set_password_openlist_docker ;;
-            13) restart_openlist_docker ;;
-            14) status_openlist_docker ;;
-            15) logs_openlist_docker ;;
-            16) show_domain_proxy_menu ;;
-            17) show_auto_update_menu ;;
+            10) manage_password ;;
+            11) install_openlist_docker ;;
+            12) exec_openlist_docker ;;
+            13) set_password_openlist_docker ;;
+            14) restart_openlist_docker ;;
+            15) status_openlist_docker ;;
+            16) logs_openlist_docker ;;
+            17) show_domain_proxy_menu ;;
+            18) show_auto_update_menu ;;
             0) 
                 echo -e "${GREEN_COLOR}谢谢使用！${RES}"
                 echo -e "${YELLOW_COLOR}* 提示：如需再次使用，请输入 'openlist' 命令${RES}"
