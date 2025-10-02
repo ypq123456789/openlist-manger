@@ -7,8 +7,8 @@ log_debug() {
 #
 # OpenList Interactive Manager Script
 #
-# Version: 1.8.2
-# Last Updated: 2025-08-06
+# Version: 1.8.3
+# Last Updated: 2025-10-02
 #
 # Description:
 #   An interactive management script for OpenList
@@ -31,7 +31,7 @@ log_debug() {
 GITHUB_REPO="OpenListTeam/OpenList"
 VERSION_TAG="beta"
 VERSION_FILE="/opt/openlist/.version"
-MANAGER_VERSION="1.8.2"  # 每次更新脚本都要更新管理器版本号
+MANAGER_VERSION="1.8.3"  # 每次更新脚本都要更新管理器版本号
 
 # 颜色配置
 RED_COLOR='\e[1;31m'
